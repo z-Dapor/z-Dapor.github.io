@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="ElasticSearch,架构,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="剖析ES集群讨论框架的文章不表明版本的都是小黄文。 es系列文章主要针对于6.0版本，会参杂7.0版本，将会在文中声明。 主要的目录请看： 这是主从架构 或者 是无主结构？它的存储模型是？它的写操作是怎样工作的？它的读操作是怎样工作的？搜索的相关性是怎样的？在深入了解这些概念前，让我们对一些术语有个大概的了解。 在ElasticSearch index 与 Lucene index间的困惑，以及其">
+<meta name="keywords" content="ElasticSearch,架构">
+<meta property="og:type" content="article">
+<meta property="og:title" content="剖析es集群系列-一-初识ElasticSearch">
+<meta property="og:url" content="https://github.com/z-Dapor/2019/08/18/剖析es集群系列-一-初识ElasticSearch/index.html">
+<meta property="og:site_name" content="两碗饭">
+<meta property="og:description" content="剖析ES集群讨论框架的文章不表明版本的都是小黄文。 es系列文章主要针对于6.0版本，会参杂7.0版本，将会在文中声明。 主要的目录请看： 这是主从架构 或者 是无主结构？它的存储模型是？它的写操作是怎样工作的？它的读操作是怎样工作的？搜索的相关性是怎样的？在深入了解这些概念前，让我们对一些术语有个大概的了解。 在ElasticSearch index 与 Lucene index间的困惑，以及其">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://github.com/2019/08/18/剖析es集群系列-一-初识ElasticSearch/shard.jpeg">
+<meta property="og:image" content="https://github.com/2019/08/18/剖析es集群系列-一-初识ElasticSearch/shard.jpeg">
+<meta property="og:image" content="https://github.com/2019/08/18/剖析es集群系列-一-初识ElasticSearch/倒排索引.png">
+<meta property="og:image" content="https://github.com/2019/08/18/剖析es集群系列-一-初识ElasticSearch/write.jpeg">
+<meta property="og:image" content="https://github.com/2019/08/18/剖析es集群系列-一-初识ElasticSearch/read.jpeg">
+<meta property="og:updated_time" content="2019-08-19T15:46:08.719Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="剖析es集群系列-一-初识ElasticSearch">
+<meta name="twitter:description" content="剖析ES集群讨论框架的文章不表明版本的都是小黄文。 es系列文章主要针对于6.0版本，会参杂7.0版本，将会在文中声明。 主要的目录请看： 这是主从架构 或者 是无主结构？它的存储模型是？它的写操作是怎样工作的？它的读操作是怎样工作的？搜索的相关性是怎样的？在深入了解这些概念前，让我们对一些术语有个大概的了解。 在ElasticSearch index 与 Lucene index间的困惑，以及其">
+<meta name="twitter:image" content="https://github.com/2019/08/18/剖析es集群系列-一-初识ElasticSearch/shard.jpeg">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/z-Dapor/2019/08/18/剖析es集群系列-一-初识ElasticSearch/">
+
+
+
+
+
+  <title>剖析es集群系列-一-初识ElasticSearch | 两碗饭</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">两碗饭</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/z-Dapor/2019/08/18/剖析es集群系列-一-初识ElasticSearch/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="z Dapor">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="两碗饭">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">剖析es集群系列-一-初识ElasticSearch</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-18T20:02:22+08:00">
+                2019-08-18
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>剖析ES集群<br>讨论框架的文章不表明版本的都是小黄文。</p>
+<p>es系列文章主要针对于6.0版本，会参杂7.0版本，将会在文中声明。</p>
+<p>主要的目录请看：</p>
+<p>这是主从架构 或者 是无主结构？<br>它的存储模型是？<br>它的写操作是怎样工作的？<br>它的读操作是怎样工作的？<br>搜索的相关性是怎样的？<br>在深入了解这些概念前，让我们对一些术语有个大概的了解。</p>
+<pre><code>在ElasticSearch index 与 Lucene index间的困惑，以及其他的常见术语...(Tips: 对于ElasticSearch  在下文中将简称为Es)
+
+一个Es index是用来去组织整理你的数据的逻辑上的命名空间 ( 就像一个database ) 。一个Es index有一个或多个分片(Shards=&gt;v6默认是5个,v7中默认为单shard单replice)。一个shard就是一个Lucene idnex.
+
+它是实际存储数据的地方 和 本身是查找引擎；每一个shard可以有0 或 多个副本 (默认为1)。Es index 也有个 &quot;types(旧版本一个index下可存在多个type，6.0之后一个index对应一个type)&quot; (像是table对于database)，它允许你的数据在index中按逻辑进行分区。所有在一个index下的一个type中的doc（内容）都有相同的属性(定义为mapping)(类比于schema对于table).</code></pre><img src="/2019/08/18/剖析es集群系列-一-初识ElasticSearch/shard.jpeg" title="This is an shard image">
+
+<pre><code>a:展示了这个Es集群包含三个主shard并且每个shard有一个副本。每一个shard都是一个Lucene index 然后这些所有的shard就组成了Es index
+
+b:展示了Es index，Lucene index 与 doc 间的逻辑关系</code></pre><p>类比到关系型数据库的术语：</p>
+<pre><code>Es index ~  database
+
+Types ~ Table
+
+Mapping ~ Schema</code></pre><img src="/2019/08/18/剖析es集群系列-一-初识ElasticSearch/shard.jpeg" title="This is an shard image">
+
+<pre><code>现在我们已经熟悉了这些术语，让我们继续看看节点都可以是哪种角色</code></pre><p>节点的类型：<br>    一个Es的实例就是一个节点，一组节点就组成一个集群。</p>
+<pre><code>集群中的节点可以有三种不同的方式配置
+
+Master Node</code></pre><p>它控制整个Es集群 并且 负责所有集群维度的操作比如 创建/删除index，跟踪集群中的节点以及分发shard给节点。主节点每次处理一个集群状态，并将该状态广播给所有其他节点，这些节点将对主节点进行确认响应。<br>可以通过在elasticsearch.yml文件中添加配置属性 node.master = ture 将该节点设置为master节点<br>在生成中，推荐有一个专门的master节点仅用来控制集群 不做任何的用户请求服务<br>    Data Node<br>这种节点被用来保存数据以及倒排index。默认情况下 每一个节点都被配置成data node 并且在elasticsearch.yml文件中属性 node.data被设置为true<br>    Client Node</p>
+<p> 如果你将node.master 以及 node.data 都设置为false，那么这个节点配置成一个client node 并且充当负载均衡器，将传入请求路由到集群中的不同节点。<br>        这个节点在Es集群中可以被称为协调节点。这个协调节点路由客户端请求发送到集群中合适的节点。对于读请求，协调节点为了平衡加载会为每次的请求挑选不同的shard来提供服务。</p>
+<pre><code>   在我们开始回顾发送到协调节点的CRUD请求是怎样通过集群传播并由引擎执行之前，让我们看看Elasticsearch是如何在内部存储数据，以在低延迟的情况下为全文搜索提供结果的。     
+
+Storage Model
+   Es使用Apache Lucene，一个用Java写的全文搜索库并由Doug Cutting（Hadoop的创作者），内部使用了一种叫倒排索引的数据结构被设计去提供低延迟的搜索结果。</code></pre><p>一个document在Es中是一个数据单元以及倒排索引是通过文章的分词创建的，根据所有的唯一条目创建一个排序列表，分配doc的list到可见的分词上；</p>
+<pre><code>它非常类似于一本书后面的索引，其中包含书中所有独特的单词，以及一个可以找到这个单词的页面列表。当我们说文档被索引时，我们指的是倒排索引。让我们看看下面两个文档的倒排索引是什么样子的:
+
+Doc 1: Insight Data Engineering Fellows Program 
+Doc 2: Insight Data Science Fellows Program</code></pre><img src="/2019/08/18/剖析es集群系列-一-初识ElasticSearch/倒排索引.png" title="This is an shard image">
+
+
+
+
+<pre><code>如果我们想找到包含术语“insight”的文档，我们可以扫描倒排索引(对单词进行排序,默认按照字典序排序)，找到单词“insight”并返回包含这个单词的文档id，在本例中是Doc 1和Doc 2。
+
+为了提高搜索能力(例如，为小写和大写单词提供相同的结果)，首先对文档进行分析，然后进行索引。分析包括两个部分:
+
+将一句话分开为单独的单词
+规范化单词为标准形式
+默认下，Es使用标准分词，：
+
+ 标准切分在单词边界上切分单词
+小写的分词过滤将单词转换为小写
+还有许多其他的分析程序可用,你可以读到他们的文档。
+
+--Note：标准分词也使用stop分词过滤 但是默认是禁用的--</code></pre><p>由于倒排索引的概念现在已经很清楚，我们来回顾一下CRUD操作。我们从 Write 开始。</p>
+<pre><code>剖析 Write
+当您向协调节点发送请求以索引新文档时，将执行以下操作:
+Es集群的所有节点含有关于shard 存活在哪个节点的信息的元数据。协调节点默认使用doc Id 来路由doc到合适的shard中。Es hash doc 使用murmur3作为hash 函数 并且mod 在index中的primary分片数量去决定索引到哪个分片去。
+        shard = hash(document_id) % (num_of_primary_shards)
+
+因为这个节点接受了从协调节点的请求，这个请求被写入translog（将在接下来的文章中讨论translog）并且这个写入的doc被添加进内存buffer中。如果在主分片中该请求成功了，这个请求将并行发送到复制分片中。客户端只在该translog被同步在所有的主和副分片后才承认该请求成功。
+这个内存缓存区被定期刷新（默认1秒）以及其内容被写入一个新的段中在文件系统缓存。这个段还没有同步，然而它是打开的并且这个内容可用于搜索。
+每30Minutes 这个 translog将被清空并且filesystem 缓存被同步 或者 当translog过大时。 这一步操作在Es中被称为Flush。在flush操作期间，内存缓冲区被清除并且内容被写道新的段中。一个新的commit point被创建伴随着这个段被同步且刷新到磁盘中。这个老的translog被删除然后开始一个新的。
+   下面的图表展示了写请求与数据流是怎样的：</code></pre><img src="/2019/08/18/剖析es集群系列-一-初识ElasticSearch/write.jpeg" title="This is an shard image">
+
+
+<pre><code>Update 和 Delete
+    删除和修改同样属于write操作。然而，在Es中的文档是不可变的，因此，不能被删除和更改去替代任何改变，那么一个doc该怎么被删除和修改呢
+
+     在disk中每一个段都有一个.del的文件与之关联。当delete请求发送时，这个doc不会真正删除，但是被标记为.del的文件。这个doc或许依旧匹配一个search查询，但它会被过滤出结果。当段被合并（后续讨论段合并），被标记为.del的文件不会包含进去。
+
+      现在，让我们看看update怎样工作。当一个新的doc被创建，Es分配一个版本号给这个doc。每一次改变都将以新的版本号作为结果。当一个更新执行，老的版本被标记为删除以.del文件并且这个新的版本被索引到新的段中。这个老的版本也依旧会被search query匹配到，然而它也将从结果中过滤出去。
+
+剖析Read
+      读操作包含两部分：</code></pre><p>查询阶段 Query<br>拉取阶段  Fetch<br>    让我们看一下每个工作阶段</p>
+<pre><code>Query 阶段
+     在这个阶段，协调节点路由这个查询请求到index中的所有分片（主，副）。碎片独立执行搜索，并创建一个优先队列，根据相关性得分排序结果(我们将在后面的文章中讨论相关性得分)。所有碎片将匹配文档的文档id和相关分数返回到协调节点。协调节点创建一个新的优先队列并对结果进行全局排序。可能有很多文档与结果匹配，但是，默认情况下，每个碎片会将前10个结果发送给协调节点，协调会从所有碎片创建优先队列，对结果进行排序，并返回前10个命中。
+
+Fetch 阶段
+     在协调节点对所有结果进行排序以生成一个全局排序的文档列表之后，它将从所有shard中请求原始文档。所有的shard充实文档，并将它们返回到协调节点。</code></pre><img src="/2019/08/18/剖析es集群系列-一-初识ElasticSearch/read.jpeg" title="This is an shard image">
+
+
+
+
+<p>如上所述，搜索结果是按相关性排序的。让我们回顾一下相关性是如何定义的。</p>
+<pre><code> Search Relevance
+ 相关性是由Elasticsearch对搜索结果中返回的每个文档给出的分数决定的。用于评分的默认算法是tf/idf(术语频率/反向文档频率)。术语频率度量一个术语在文档中出现的次数(更高的频率==更高的相关性)和反向文档频率度量这个词在整个索引中出现的频率，它是索引中文档总数的百分比(更高的频率==较少的相关性)。最终得分是tf-idf得分与其他因素的组合，如词汇接近(用于短语查询)、词汇相似(用于模糊查询)等。
+
+
+
+接下来
+ 这些CRUD操作由一些内部数据结构和技术支持，对于理解Elasticsearch的工作原理非常重要。在后续的文章中，我将在使用Elasticsearch时介绍这些概念和一些问题。</code></pre><p>脑裂问题以及如何避免<br>translog<br>Lucence segements<br>为什么在查找时深度页是危险的？<br>计算搜索相关性的困难和权衡<br>并发控制<br>为什么es是near real-time<br>怎样确保读写一致性</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/ElasticSearch/" rel="tag"># ElasticSearch</a>
+          
+            <a href="/tags/架构/" rel="tag"># 架构</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/08/18/剖析es集群系列-三-集群细节/" rel="next" title="剖析es集群系列(三): 集群细节">
+                <i class="fa fa-chevron-left"></i> 剖析es集群系列(三): 集群细节
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/08/20/Spark-es-读写及优化实践/" rel="prev" title="Spark-es 读写及优化实践">
+                Spark-es 读写及优化实践 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+
+      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">z Dapor</p>
+              <p class="site-description motion-element" itemprop="description">日常记录，当然不限于技术</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">1</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">7</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">z Dapor</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://github.com/z-Dapor">Ice-Cream</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info"><a class="theme-link" target="_blank" href="https://github.com/z-Dapor">find me</a></div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

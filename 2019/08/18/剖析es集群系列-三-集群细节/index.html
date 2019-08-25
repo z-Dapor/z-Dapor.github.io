@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="start write record,">
+  <meta name="keywords" content="ElasticSearch,集群,">
 
 
 
@@ -79,18 +79,20 @@
 
 
 
-<meta name="description" content="日常记录，当然不限于技术">
-<meta name="keywords" content="start write record">
+<meta name="description" content="在这篇文章中，我们将讨论ES是怎样提供近乎实时的查找以及思考权衡计算搜索相关性。在之前的文章中，我们讨论了ES怎样面对分布式系统的基本挑战。 在这篇文章，我们将回顾ES近实时的搜索以及权衡它考虑计算搜索相关性。 主要如下：近实时的查询为什么分布式搜索中的深度分页会很危险？计算搜索相关性的权衡Near real-time search  虽然Elasticsearch的变化不会立即出现，但它确实提供">
+<meta name="keywords" content="ElasticSearch,集群">
 <meta property="og:type" content="article">
-<meta property="og:title" content="我的 First Blog">
-<meta property="og:url" content="https://github.com/z-Dapor/2019/08/13/我的-First-Blog/index.html">
+<meta property="og:title" content="剖析es集群系列(三): 集群细节">
+<meta property="og:url" content="https://github.com/z-Dapor/2019/08/18/剖析es集群系列-三-集群细节/index.html">
 <meta property="og:site_name" content="两碗饭">
-<meta property="og:description" content="日常记录，当然不限于技术">
+<meta property="og:description" content="在这篇文章中，我们将讨论ES是怎样提供近乎实时的查找以及思考权衡计算搜索相关性。在之前的文章中，我们讨论了ES怎样面对分布式系统的基本挑战。 在这篇文章，我们将回顾ES近实时的搜索以及权衡它考虑计算搜索相关性。 主要如下：近实时的查询为什么分布式搜索中的深度分页会很危险？计算搜索相关性的权衡Near real-time search  虽然Elasticsearch的变化不会立即出现，但它确实提供">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2019-08-13T01:55:21.542Z">
+<meta property="og:image" content="https://github.com/2019/08/18/剖析es集群系列-三-集群细节/深度分页.png">
+<meta property="og:updated_time" content="2019-08-19T15:45:34.519Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="我的 First Blog">
-<meta name="twitter:description" content="日常记录，当然不限于技术">
+<meta name="twitter:title" content="剖析es集群系列(三): 集群细节">
+<meta name="twitter:description" content="在这篇文章中，我们将讨论ES是怎样提供近乎实时的查找以及思考权衡计算搜索相关性。在之前的文章中，我们讨论了ES怎样面对分布式系统的基本挑战。 在这篇文章，我们将回顾ES近实时的搜索以及权衡它考虑计算搜索相关性。 主要如下：近实时的查询为什么分布式搜索中的深度分页会很危险？计算搜索相关性的权衡Near real-time search  虽然Elasticsearch的变化不会立即出现，但它确实提供">
+<meta name="twitter:image" content="https://github.com/2019/08/18/剖析es集群系列-三-集群细节/深度分页.png">
 
 
 
@@ -120,13 +122,13 @@
 
 
 
-  <link rel="canonical" href="https://github.com/z-Dapor/2019/08/13/我的-First-Blog/">
+  <link rel="canonical" href="https://github.com/z-Dapor/2019/08/18/剖析es集群系列-三-集群细节/">
 
 
 
 
 
-  <title>我的 First Blog | 两碗饭</title>
+  <title>剖析es集群系列(三): 集群细节 | 两碗饭</title>
   
 
 
@@ -263,7 +265,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/z-Dapor/2019/08/13/我的-First-Blog/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/z-Dapor/2019/08/18/剖析es集群系列-三-集群细节/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="z Dapor">
@@ -280,7 +282,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">我的 First Blog</h1>
+          <h1 class="post-title" itemprop="name headline">剖析es集群系列(三): 集群细节</h1>
         
 
         <div class="post-meta">
@@ -292,8 +294,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-13T09:51:54+08:00">
-                2019-08-13
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-18T18:31:36+08:00">
+                2019-08-18
               </time>
             
 
@@ -330,7 +332,41 @@
       
 
       
-        
+        <pre><code>在这篇文章中，我们将讨论ES是怎样提供近乎实时的查找以及思考权衡计算搜索相关性。在之前的文章中，我们讨论了ES怎样面对分布式系统的基本挑战。
+在这篇文章，我们将回顾ES近实时的搜索以及权衡它考虑计算搜索相关性。
+主要如下：近实时的查询为什么分布式搜索中的深度分页会很危险？计算搜索相关性的权衡Near real-time search
+
+虽然Elasticsearch的变化不会立即出现，但它确实提供了一个近乎实时的搜索引擎。
+如之前提到的，提价Lucene改变到磁盘是昂贵的操作。
+为了避免将更改提交到磁盘，同时仍然使文档可用于搜索，在内存缓冲区和磁盘之间有一个文件系统缓存。
+内存缓冲区在每一秒钟(默认情况下)刷新一次，并且在文件系统缓存中创建一个新的具有倒排索引的段。
+这个段是打开的并且可用于查找。
+文件系统缓存可以有文件句柄，可以打开、读取和关闭文件，但是，它位于内存中。
+由于默认刷新间隔为1秒，因此更改不会立即可见，因此它接近实时。
+由于translog是不持久化到磁盘上的更改的持久记录，因此它还有助于CRUD操作的接近实时方面.
+对于每个请求，translog都会在查看相关部分之前搜索最近的任何更改，因此客户机几乎可以实时访问所有更改。
+
+您可以在每次创建/更新/删除操作之后显式地刷新索引，以使更改立即可见，但不建议这样做，因为创建的小段太多，会影响搜索性能。
+对于搜索请求，将搜索给定的Elasticsearch索引碎片中的所有Lucene片段，但是，获取结果页面深处的所有匹配文档或文档对您的Elasticsearch集群是危险的。
+让我们看看为什么会这样。
+当您在Elasticsearch中进行搜索请求，其中有许多匹配文档时，默认情况下，返回的第一个页面包含前10个结果。
+搜索API有from和size参数来指定匹配搜索的所有文档的结果应该有多深。
+例如，如果您想查看与搜索匹配的级别为50到60的文档，那么from=50和size=10开始。
+当每个碎片接收到搜索请求时，它将创建一个大小为（from+size）优先队列，以满足搜索结果本身，然后将结果返回到协调节点。</code></pre><img src="/2019/08/18/剖析es集群系列-三-集群细节/深度分页.png" title="This is an shard image">
+
+<pre><code>如果您希望看到从50,000到50,010排序的结果，那么每个碎片将创建一个优先队列，每个碎片有50,010个结果，
+协调节点必须在内存中对碎片数量* 50,010个结果进行排序。
+这种级别的分页可能是可行的，也可能是不可能的，这取决于您拥有的硬件资源，但是可以这样说，您应该非常小心深度分页，因为它很容易导致集群崩溃。
+使用 scroll API可以获得与结果匹配的所有文档，滚动API更像是关系数据库中的游标。
+使用滚动API禁用排序，每个碎片都会发送结果，只要它有与搜索匹配的文档。如果要获取大量的文档，那么对得分结果进行排序是很昂贵的。
+而且，由于Elasticsearch是一个分布式系统，计算文档的搜索相关性得分非常昂贵。
+
+现在让我们看看计算搜索相关性所做的许多权衡取舍之一。 
+
+使用tf-idf搜索相关性，由于其分布式特性，计算全局idf(倒排频率)非常昂贵。
+相反，每个碎片计算一个本地idf，为结果文档分配一个相关得分，并仅为该碎片上的文档返回结果。
+类似地，所有碎片返回结果文档，其中包含使用本地idf计算的相关分数，协调节点对所有结果进行排序，以返回最高的分数。
+在大多数情况下，这是可以的，除非索引在关键字方面是倾斜的，或者单个碎片上没有足够的数据来表示全局分布。</code></pre>
       
     </div>
     
@@ -347,7 +383,9 @@
       
         <div class="post-tags">
           
-            <a href="/tags/start-write-record/" rel="tag"># start write record</a>
+            <a href="/tags/ElasticSearch/" rel="tag"># ElasticSearch</a>
+          
+            <a href="/tags/集群/" rel="tag"># 集群</a>
           
         </div>
       
@@ -360,14 +398,18 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
+              <a href="/2019/08/17/剖析es集群系列-二-集群内部的一些事儿/" rel="next" title="剖析es集群系列(二): 集群内部的一些事儿">
+                <i class="fa fa-chevron-left"></i> 剖析es集群系列(二): 集群内部的一些事儿
+              </a>
+            
           </div>
 
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
             
-              <a href="/2019/08/17/剖析es集群系列-二-集群内部的一些事儿/" rel="prev" title="剖析es集群系列(二): 集群内部的一些事儿">
-                剖析es集群系列(二): 集群内部的一些事儿 <i class="fa fa-chevron-right"></i>
+              <a href="/2019/08/18/剖析es集群系列-一-初识ElasticSearch/" rel="prev" title="剖析es集群系列-一-初识ElasticSearch">
+                剖析es集群系列-一-初识ElasticSearch <i class="fa fa-chevron-right"></i>
               </a>
             
           </div>

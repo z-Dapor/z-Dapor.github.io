@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="ElasticSearch,集群,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="共性：脑裂问题以及quorum的重要性 并发性 稳定性：确保读写的一致性 translog（写前日志--WAL） Lucene Segement共识—脑裂问题以及quorum的重要性：            共识性问题是分布式系统的基本挑战之一。它要求系统中的所有操作/节点 去同意 给定的数据值/状态。有很多的共性算法 例如Raft，Paxos 等等 都从数学上服务于工作。 然而Es自己实现了一致">
+<meta name="keywords" content="ElasticSearch,集群">
+<meta property="og:type" content="article">
+<meta property="og:title" content="剖析es集群系列(二): 集群内部的一些事儿">
+<meta property="og:url" content="https://github.com/z-Dapor/2019/08/17/剖析es集群系列-二-集群内部的一些事儿/index.html">
+<meta property="og:site_name" content="两碗饭">
+<meta property="og:description" content="共性：脑裂问题以及quorum的重要性 并发性 稳定性：确保读写的一致性 translog（写前日志--WAL） Lucene Segement共识—脑裂问题以及quorum的重要性：            共识性问题是分布式系统的基本挑战之一。它要求系统中的所有操作/节点 去同意 给定的数据值/状态。有很多的共性算法 例如Raft，Paxos 等等 都从数学上服务于工作。 然而Es自己实现了一致">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://github.com/2019/08/17/剖析es集群系列-二-集群内部的一些事儿/es-脑裂图.jpeg">
+<meta property="og:image" content="https://github.com/2019/08/17/剖析es集群系列-二-集群内部的一些事儿/Lucence-segement.jpeg">
+<meta property="og:updated_time" content="2019-08-19T15:48:03.927Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="剖析es集群系列(二): 集群内部的一些事儿">
+<meta name="twitter:description" content="共性：脑裂问题以及quorum的重要性 并发性 稳定性：确保读写的一致性 translog（写前日志--WAL） Lucene Segement共识—脑裂问题以及quorum的重要性：            共识性问题是分布式系统的基本挑战之一。它要求系统中的所有操作/节点 去同意 给定的数据值/状态。有很多的共性算法 例如Raft，Paxos 等等 都从数学上服务于工作。 然而Es自己实现了一致">
+<meta name="twitter:image" content="https://github.com/2019/08/17/剖析es集群系列-二-集群内部的一些事儿/es-脑裂图.jpeg">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/z-Dapor/2019/08/17/剖析es集群系列-二-集群内部的一些事儿/">
+
+
+
+
+
+  <title>剖析es集群系列(二): 集群内部的一些事儿 | 两碗饭</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">两碗饭</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/z-Dapor/2019/08/17/剖析es集群系列-二-集群内部的一些事儿/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="z Dapor">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="两碗饭">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">剖析es集群系列(二): 集群内部的一些事儿</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-17T09:55:23+08:00">
+                2019-08-17
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/大数据/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <pre><code>共性：脑裂问题以及quorum的重要性
+并发性
+稳定性：确保读写的一致性
+translog（写前日志--WAL）
+Lucene Segement</code></pre><p>共识—脑裂问题以及quorum的重要性：<br>            共识性问题是分布式系统的基本挑战之一。它要求系统中的所有操作/节点 去同意 给定的数据值/状态。有很多的共性算法 例如Raft，Paxos 等等 都从数学上服务于工作。</p>
+<p>然而Es自己实现了一致性系统（Zen discovery）因为这个原因here 。这个zen discovery 模型有两部分：</p>
+<pre><code>        Ping：这些操作节点用来去发现其他的每个节点
+        单播：该模式包含了用来控制那些用来ping的节点的list
+        Es是一个点对点的系统，所有的节点互相通讯并且其中有一个活跃的master去用来更新和控制集群层面的状态和操作。一个新的Es集群 中所有有master资格的节点选举出一个master，然后其他的节点加入进去。默认的ping——interval是1s 并且 ping_timeout是3s。随着节点的加入，新节点发送join 请求给master 使用默认的join_timeout（是20次ping_timeout）。如果主节点失败，集群中的节点将再次发出ping信号，开始另一次选举。如果节点意外地认为主节点失败了，并通过其他节点发现了主节点，这个ping过程也会有帮助。
+
+NOTE： 默认情况下，client 和 data 节点不会参与选举。这可以通过设置更改：
+
+        设置discovery.zen.master_election.filter_client and discovery.zen.master_election.filter_data 属性为 False in elasticsearch.yml 配置文件.
+
+对于错误检测，master节点ping所有其他的节点去检查他们是否或者并且所有的节点ping master节点返回去报到他们活着。
+
+        如果使用默认的设置，在网络分区的情况下Es会遭受脑裂问题。一个节点认为master已经挂了接着选举了它自己作为了master，结果就是导致了集群中有多个的master。 这可能导致数据丢失并且他或许不能正确的合并数据。这可以被避免通过如下的设置 设置master合格节点数（通过所有可选的master节点 一起选出一个master）</code></pre><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">discovery.zen.minimum_master_nodes = int(# of master eligible nodes/2)+1﻿​</span><br></pre></td></tr></table></figure>
+
+<img src="/2019/08/17/剖析es集群系列-二-集群内部的一些事儿/es-脑裂图.jpeg" title="This is an example image">
+<pre><code>这个属性需要活跃的合格的master法定节点 以加入新当选的节点去完成选举过程。并且这个新master接受它master的身份。这是一个及其重要的过程去确保集群的稳定性并且可以动态的更新集群 如果集群的size改变。 上边的图表a b展现了在网络分区的状况下 有无设置minimum_master_nodes 属性的情况下将会发生什么</code></pre><p><strong>NOTE：</strong> 对于一个生产集群，推荐有3个专用的master节点，不服务与任何的客户端请求，其中一个在任何时间都要活跃。</p>
+<p>随着我们学完了Es的公共性，让我们看看他是怎么处理并发的：</p>
+<p><strong>Concurrency：</strong><br>        Es是一个分布式系统并且支持并发请求。当一个C/U/D请求撞到了primary shard，它是并行于复制碎片发送的，然而，这些请求可能是无序的。这种情况下，Es使用乐观并发控制去确保这个新的doc版本不被老的版本覆写。</p>
+<pre><code>每一个doc index都有一个版本号，当每一个改变应用到doc它就会增长。这些版本号被用来确保这些改变被有序的应用。为了确保在我们应用的更新不会导致数据丢失，Elasticsearch的API允许您指定应对其应用更改的文档的当前版本号。﻿​﻿​如果指定的版本号比当前shard中的版本号老 那么请求会失败，这意味着这个doc以及被其他操作更新了（CAS）。如何处理失败的请求可以在应用程序级别进行控制。还有其他的锁选项可用并且你可以从这阅读它 here.
+
+随着我们发送并发请求给Es，下一个困惑是-我们怎样使得这些请求一致性？现在还不清楚CAP三角关系中 ES选择了哪些，在这篇文章中 我们不会争论这个问题。然而，我们将回顾如何使用Elasticsearch实现一致的读写。</code></pre><p><strong>Consistency — Ensuring consistent writes and reads：</strong></p>
+<pre><code>对于写操作，Elasticsearch支持与大多数其他数据库不同的一致性级别，以便进行初步检查来查看可用的允许写入的碎片数量。这可用选项是quorum，one和all。默认的是设置quorum以及这意味着这个写操作将只被允许在大部分shard可用的情况下。伴随着大多数shards可用，仍会发生因为各种原因写入一个副本失败因为，在这种情况下，这个副本本告知有错误的，并且这个shard 将被重建在其他的节点上。
+
+对于读取，新的doc对于search来说不是可用的直到在refresh（默认为1s） 间隔后。为了确保search请求返回的是最新的doc版本，副本可以被设置成sync（default），在副本分片以及主分片都完成操作后会返回写请求。在这种情况下，search请求都会返回最新的doc版本。甚至如果你的应用为了更高的index rate要求 replication=async （废弃），对于search request有一个_preference 参数 可以被设置成primary。通过这种方式，主碎片将查询搜索请求，并确保结果来自文档的最新版本。
+
+
+
+当我们理解了Elasticsearch如何处理公共性、并发性和一致性时，让我们回顾一下shard的一些重要概念，这些概念导致了Elasticsearch作为分布式搜索引擎的某些特性。</code></pre><p><strong>Translog：</strong></p>
+<pre><code>    自从关系型数据库开始发展，WAL或者transaction log（translog）的感念就一直围绕在数据库世界。translog确保在发生故障时的数据完整性，其基本原则是，在将对数据的实际更改提交到磁盘之前，必须记录并提交预期的更改。当新文档被索引或旧文档被更新时，Lucene索引将发生更改，这些更改将提交到磁盘以进行持久化。这是一个非常昂贵的操作对于每次执行写请求。因此，因此一种方法是一次持久化多个改变。在前一个文章中描述过，flush操作（luncene 提交）默认每30min或者当translog变得很大（默认是512M）。在这种方案，这可能丢失两次提交间更改的所有数据。为了避免这种错误，Es使用translog并且translog是同步的 在每一个index/del/update操作（或者默认是每5秒）为了确保更改是持久的。在主碎片和副本碎片上都进行了fsync处理后，客户端会收到对写操作的确认。
+
+万一在两个Lucene提交或者重启时硬件出错，这个translog将重播，以便在最后一次Lucene提交之前从丢失的更改中恢复，并将所有更改应用到索引中。
+
+NOTE: 推荐在重启Es实例前明确的flush translog，因为这样启动的将会更快，因为这个translog被重播后将是空。POST /_all/_flush命令可用来flush集群中所有的索引。
+
+通过translog刷新操作，文件系统缓存中的段被提交到磁盘，以在索引持久化中进行更改。现在让我们看看Lucene段是什么</code></pre><p><strong>Lucene Segments：</strong></p>
+<pre><code>一个Lucene index 由多个段组成并且一个段是一个完全的倒排索引。段是不可变得它允许Lucene去增加新的doc去使得index增长而不需要为了搜索重建索引。对于每个搜索请求，所有在index中的段都被search，并且每个段消耗CPU 周期，文件句柄以及内存。这意味着 段数越多，搜索效率越低。
+
+ 为了解决这个问题，Es会合并小的段一起到一个更大的段（如下图所示），提交新的合并段到磁盘并且删除老得小的段。</code></pre><img src="/2019/08/17/剖析es集群系列-二-集群内部的一些事儿/Lucence-segement.jpeg" title="This is an example image">
+
+<pre><code>这在后台自动发生，不会中断索引或搜索。由于段合并会耗尽资源并影响搜索性能，所以Elasticsearch会限制合并过程，以获得足够的资源进行搜索。</code></pre><p>What Next？</p>
+<pre><code>对于搜索请求，将搜索给定的Elasticsearch索引碎片中的所有Lucene片段，但是，获取所有匹配文档或排名结果中的深层文档对您的Elasticsearch集群是危险的。在后续的文章中，我们将了解这是为什么，并回顾以下主题，其中包括在Elasticsearch中所做的一些权衡，以低延迟提供相关搜索结果。
+
+    关于Es的近实时层面
+    为什么搜索中的深度分页会很危险?
+    计算搜索相关性的权衡</code></pre>
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/ElasticSearch/" rel="tag"># ElasticSearch</a>
+          
+            <a href="/tags/集群/" rel="tag"># 集群</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/08/13/我的-First-Blog/" rel="next" title="我的 First Blog">
+                <i class="fa fa-chevron-left"></i> 我的 First Blog
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/08/18/剖析es集群系列-三-集群细节/" rel="prev" title="剖析es集群系列(三): 集群细节">
+                剖析es集群系列(三): 集群细节 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+
+      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">z Dapor</p>
+              <p class="site-description motion-element" itemprop="description">日常记录，当然不限于技术</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">1</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">7</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">z Dapor</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://github.com/z-Dapor">Ice-Cream</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info"><a class="theme-link" target="_blank" href="https://github.com/z-Dapor">find me</a></div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Hexo, NexT">
+  <meta name="keywords" content="Spark,源码,">
 
 
 
@@ -79,16 +79,21 @@
 
 
 
-<meta name="description" content="日常记录，当然不限于技术">
-<meta property="og:type" content="website">
-<meta property="og:title" content="两碗饭">
-<meta property="og:url" content="https://github.com/z-Dapor/tags/start-write-record/index.html">
+<meta name="description" content="一：编译环境：maven3.6.0，Spark版本 2.4.0，win10环境遇到的问题： 1.开始用的maven3.5.2 报错 发现官网要求maven版本最低3.5.4.两分钟重新下载maven 并配置环境，重新编译未出现版本问题  2.没有版本问题后 出现另一个错误：      大概意思是： An Ant BuildException has occured: Execute failed:">
+<meta name="keywords" content="Spark,源码">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Win10下编译Spark并导入Idea进行源码分析">
+<meta property="og:url" content="https://github.com/z-Dapor/2019/08/21/Win10下编译Spark并导入Idea进行源码分析/index.html">
 <meta property="og:site_name" content="两碗饭">
-<meta property="og:description" content="日常记录，当然不限于技术">
+<meta property="og:description" content="一：编译环境：maven3.6.0，Spark版本 2.4.0，win10环境遇到的问题： 1.开始用的maven3.5.2 报错 发现官网要求maven版本最低3.5.4.两分钟重新下载maven 并配置环境，重新编译未出现版本问题  2.没有版本问题后 出现另一个错误：      大概意思是： An Ant BuildException has occured: Execute failed:">
 <meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://github.com/2019/08/21/Win10下编译Spark并导入Idea进行源码分析/mvn-build-Spark.png">
+<meta property="og:image" content="https://github.com/2019/08/21/Win10下编译Spark并导入Idea进行源码分析/调试-Spark.png">
+<meta property="og:updated_time" content="2019-08-21T13:35:43.529Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="两碗饭">
-<meta name="twitter:description" content="日常记录，当然不限于技术">
+<meta name="twitter:title" content="Win10下编译Spark并导入Idea进行源码分析">
+<meta name="twitter:description" content="一：编译环境：maven3.6.0，Spark版本 2.4.0，win10环境遇到的问题： 1.开始用的maven3.5.2 报错 发现官网要求maven版本最低3.5.4.两分钟重新下载maven 并配置环境，重新编译未出现版本问题  2.没有版本问题后 出现另一个错误：      大概意思是： An Ant BuildException has occured: Execute failed:">
+<meta name="twitter:image" content="https://github.com/2019/08/21/Win10下编译Spark并导入Idea进行源码分析/mvn-build-Spark.png">
 
 
 
@@ -118,13 +123,13 @@
 
 
 
-  <link rel="canonical" href="https://github.com/z-Dapor/tags/start-write-record/">
+  <link rel="canonical" href="https://github.com/z-Dapor/2019/08/21/Win10下编译Spark并导入Idea进行源码分析/">
 
 
 
 
 
-  <title>标签: start write record | 两碗饭</title>
+  <title>Win10下编译Spark并导入Idea进行源码分析 | 两碗饭</title>
   
 
 
@@ -143,7 +148,7 @@
     
   
 
-  <div class="container sidebar-position-left ">
+  <div class="container sidebar-position-left page-post-detail">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
@@ -247,52 +252,163 @@
           <div id="content" class="content">
             
 
-  
-  
-  
-  <div class="post-block tag">
+  <div id="posts" class="posts-expand">
+    
 
-    <div id="posts" class="posts-collapse">
-      <div class="collection-title">
-        <h1>start write record<small>标签</small>
-        </h1>
-      </div>
+  
 
-      
-        
+  
+  
+  
 
   <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/z-Dapor/2019/08/21/Win10下编译Spark并导入Idea进行源码分析/">
 
-      <h2 class="post-title">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="z Dapor">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="两碗饭">
+    </span>
+
+    
+      <header class="post-header">
+
         
-            <a class="post-title-link" href="/2019/08/13/我的-First-Blog/" itemprop="url">
-              
-                <span itemprop="name">我的 First Blog</span>
-              
-            </a>
         
-      </h2>
+          <h1 class="post-title" itemprop="name headline">Win10下编译Spark并导入Idea进行源码分析</h1>
+        
 
-      <div class="post-meta">
-        <time class="post-time" itemprop="dateCreated" datetime="2019-08-13T09:51:54+08:00" content="2019-08-13">
-          08-13
-        </time>
-      </div>
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-21T21:14:07+08:00">
+                2019-08-21
+              </time>
+            
 
-    </header>
-  </article>
+            
 
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>一：编译<br>环境：maven3.6.0，Spark版本 2.4.0，win10环境<br>遇到的问题：</p>
+<pre><code>1.开始用的maven3.5.2 报错 发现官网要求maven版本最低3.5.4.两分钟重新下载maven 并配置环境，重新编译未出现版本问题
+
+2.没有版本问题后 出现另一个错误：
+
+    大概意思是： An Ant BuildException has occured: Execute failed: java.io.IOException: Cannot run program &quot;bash&quot; (in directory &quot;D:\IdeaProject\hbase-2.1.3\hbase-common&quot;): CreateProcess error=2, 系统找不到指定的文件。
+
+    出现这种问题大概就是因为默认用的linux环境。如果有git 那最好 ，直接在spark源码文件下打开git bash，继而执行 mvn package -DskipTests</code></pre><p>–</p>
+<img src="/2019/08/21/Win10下编译Spark并导入Idea进行源码分析/mvn-build-Spark.png" title="编译图片">
+<p>–<br>（机械破盘 大概要35min 左右）</p>
+<p>TIPS; 更多应用参见：Spark build 文档</p>
+<pre><code>https://spark.apache.org/docs/latest/building-spark.html#apache-maven</code></pre><p>二：导入Idea，并进行源码调试阅读<br>调试部分直接看： <a href="https://blog.csdn.net/sddyljsx/article/details/81054014" target="_blank" rel="noopener">https://blog.csdn.net/sddyljsx/article/details/81054014</a></p>
+<p>–</p>
+<img src="/2019/08/21/Win10下编译Spark并导入Idea进行源码分析/调试-Spark.png" title="调试图片">
+<p>–<br>二：剩下的自由发挥！！！！</p>
 
       
     </div>
+    
+    
+    
 
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Spark/" rel="tag"># Spark</a>
+          
+            <a href="/tags/源码/" rel="tag"># 源码</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/08/21/Win10下编译Hbase并导入Idea进行源码分析/" rel="next" title="Win10下编译Hbase并导入Idea进行源码分析">
+                <i class="fa fa-chevron-left"></i> Win10下编译Hbase并导入Idea进行源码分析
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
   </div>
   
   
   
+  </article>
 
-  
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
 
 
           </div>
@@ -300,6 +416,10 @@
 
 
           
+
+  
+
+
 
         </div>
         
@@ -521,6 +641,10 @@
 
 
   
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
 
   
 
