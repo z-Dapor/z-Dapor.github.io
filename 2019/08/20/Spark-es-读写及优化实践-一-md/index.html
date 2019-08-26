@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="源码,Spark,ElasticSearch,Spark-ElasticSearch,调优,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="前言：讨论框架的文章不声明版本的都是小黄文本文组件版本： ELasticSearch：6.4.1 Spark：2.1.0 依赖： &amp;lt;dependency&amp;gt;   &amp;lt;groupId&amp;gt;org.elasticsearch&amp;lt;/groupId&amp;gt;   &amp;lt;artifactId&amp;gt;elasticsearch-hadoop&amp;lt;/artifactId&amp;gt;   &amp;lt">
+<meta name="keywords" content="源码,Spark,ElasticSearch,Spark-ElasticSearch,调优">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Spark-es-读写及优化实践(一).md">
+<meta property="og:url" content="https://github.com/z-Dapor/2019/08/20/Spark-es-读写及优化实践-一-md/index.html">
+<meta property="og:site_name" content="两碗饭">
+<meta property="og:description" content="前言：讨论框架的文章不声明版本的都是小黄文本文组件版本： ELasticSearch：6.4.1 Spark：2.1.0 依赖： &amp;lt;dependency&amp;gt;   &amp;lt;groupId&amp;gt;org.elasticsearch&amp;lt;/groupId&amp;gt;   &amp;lt;artifactId&amp;gt;elasticsearch-hadoop&amp;lt;/artifactId&amp;gt;   &amp;lt">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2019-08-25T14:35:29.962Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Spark-es-读写及优化实践(一).md">
+<meta name="twitter:description" content="前言：讨论框架的文章不声明版本的都是小黄文本文组件版本： ELasticSearch：6.4.1 Spark：2.1.0 依赖： &amp;lt;dependency&amp;gt;   &amp;lt;groupId&amp;gt;org.elasticsearch&amp;lt;/groupId&amp;gt;   &amp;lt;artifactId&amp;gt;elasticsearch-hadoop&amp;lt;/artifactId&amp;gt;   &amp;lt">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/z-Dapor/2019/08/20/Spark-es-读写及优化实践-一-md/">
+
+
+
+
+
+  <title>Spark-es-读写及优化实践(一).md | 两碗饭</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">两碗饭</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/z-Dapor/2019/08/20/Spark-es-读写及优化实践-一-md/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="z Dapor">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="两碗饭">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Spark-es-读写及优化实践(一).md</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-20T21:56:39+08:00">
+                2019-08-20
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>前言：<br>讨论框架的文章不声明版本的都是小黄文<br>本文组件版本：</p>
+<pre><code>ELasticSearch：6.4.1
+Spark：2.1.0
+依赖：
+&lt;dependency&gt;
+  &lt;groupId&gt;org.elasticsearch&lt;/groupId&gt;
+  &lt;artifactId&gt;elasticsearch-hadoop&lt;/artifactId&gt;
+  &lt;version&gt;6.4.1&lt;/version&gt;
+&lt;/dependency&gt;</code></pre><p>介绍：<br>ElasticSearch 以Lucene，inverse index为基础,形成一个去中心化的集群模式，提供更强的查询服务。<br>通常用来做，文本搜索，包括模糊匹配，多条件组合查询，全文检索，地理位置查询；可以利用聚合能力结合Kibana，做图表，数据分析等等。</p>
+<p>Spark 利用底层的分布式数据集，集成上层的SQL Api 可降低OLAP的分析门槛。<br>利用Spark 与 ES相结合，可进行复杂的OLAP分析。<br>目前ES官方推出的ElasticSearch-Spark插件，通过实现Spark DataSource接口(Spark2.2.x及旧版本)，以Stream的形式，生成esRDD，以进行Spark Sql等的数据操作。</p>
+<p><strong>Tips：</strong>简单介绍下Spark2.3及之后版本，由于多了DataSource V2版本，在V2基础上，做更好的列裁剪，谓词下推，数据分区，增强了API的独立性，针对dataSource的开发更加友好。目前ELasticSearch-Spark的DataSource是针对V1版本实现的，针对V2版本的开发正在进行中…</p>
+<pre><code>最新稳定版本：ES7.3,Spark2.x &lt; 2.3.0
+
+    &lt;dependency&gt;
+    &lt;groupId&gt;org.elasticsearch&lt;/groupId&gt;
+    &lt;artifactId&gt;elasticsearch-hadoop&lt;/artifactId&gt;
+    &lt;version&gt;7.0.0&lt;/version&gt;
+    &lt;/dependency&gt;</code></pre><p>Spark es:<br>    read:</p>
+<ol>
+<li>使用DSL读取</li>
+<li>使用SparkSql读取</li>
+</ol>
+<pre><code>一：DSL代码：
+package com.zhp.test
+
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.{SparkConf, SparkContext}
+import org.elasticsearch.spark._
+
+object SparkQueryEsByDsl {
+val esUrl = &quot;10.120.166.145&quot;
+
+def main(args: Array[String]): Unit = {
+val conf = new SparkConf()
+conf.setAppName(&quot;test_sparkDsl_query_es&quot;)
+
+val spark = SparkSession
+  .builder()
+  .master(&quot;local[*]&quot;)
+  .config(conf)
+  .getOrCreate()
+val options = Map(&quot;pushdown&quot; -&gt; &quot;true&quot;, &quot;es.nodes&quot; -&gt; esUrl, &quot;es.port&quot; -&gt; &quot;9200&quot;, &quot;es.read.metadata&quot; -&gt; &quot;true&quot;,
+  &quot;es.internal.spark.sql.pushdown.strict&quot; -&gt; &quot;true&quot;, &quot;es.http.timeout&quot; -&gt; &quot;30m&quot;, &quot;es.scroll.keepalive&quot; -&gt; &quot;30m&quot;)
+val index = &quot;order_2019-03-27&quot;
+val query =
+&quot;&quot;&quot;
+{
+  &quot;query&quot;: {
+    &quot;bool&quot;: {
+      &quot;filter&quot;: {
+        &quot;term&quot;: {
+          &quot;order_type&quot;: &quot;2&quot;
+        }
+      }
+    }
+  }
+}
+&quot;&quot;&quot;
+val res = spark.sparkContext.esRDD(index, query, options)
+val count = res.map(x =&gt; {
+  //doc ID
+  val key = x._1
+  val value = x._2
+  println(key)
+  (key,value)
+}).count()
+println(count)
+spark.stop() 
+  }
+}</code></pre><hr>
+<pre><code>二：Spark Sql代码
+package com.zhp.test
+
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+object ReadVideoFromEs {
+val esUrl = &quot;10.120.166.145&quot;
+
+def main(args: Array[String]): Unit = {
+    val conf = new SparkConf()
+    conf.setAppName(&quot;test_sparkSql_query_es&quot;)
+    conf.setMaster(&quot;local[*]&quot;)
+    conf.set(&quot;es.nodes&quot;, esUrl)
+    val spark = SparkSession
+    .builder()
+    .config(conf)
+    .getOrCreate()
+    val options = Map(&quot;pushdown&quot; -&gt; &quot;true&quot;, &quot;es.nodes&quot; -&gt; esUrl, &quot;es.port&quot; -&gt; &quot;9200&quot;, &quot;es.read.metadata&quot; -&gt; &quot;true&quot;,
+  &quot;es.internal.spark.sql.pushdown.strict&quot; -&gt; &quot;true&quot;, &quot;es.http.timeout&quot; -&gt; &quot;30m&quot;, &quot;es.scroll.keepalive&quot; -&gt; &quot;30m&quot;,&quot;double.filtering&quot; -&gt; &quot;false&quot;,&quot;es.scroll.size&quot; -&gt; &quot;5000&quot;)①
+spark.read.format(&quot;org.elasticsearch.spark.sql&quot;).options(options).load(&quot;movie_video_info/_doc&quot;).createTempView(&quot;video&quot;)
+import spark.implicits._
+import spark.sql
+val res = sql(&quot;select name from video&quot;).where($&quot;channel&quot; === &quot;电影&quot;).show(10)
+println(&quot;match doc num is: &quot;+res)
+//sql(&quot;select name,_metadata[&apos;_id&apos;] from video&quot;)
+spark.stop()
+    }
+}</code></pre><p>对参数做部分的解释，详情可见：<br><a href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/spark.html#spark-sql-read-ds" target="_blank" rel="noopener">https://www.elastic.co/guide/en/elasticsearch/hadoop/current/spark.html#spark-sql-read-ds</a><br>标注解释：</p>
+<ol>
+<li><p>“es.read.metadata” -&gt; “true”<br> 设置为 true 则读取doc的meta信息，如doc ID；默认false；</p>
+</li>
+<li><p>“es.scroll.size” -&gt; “5000”<br> 该配置决定查询完成后，Spark Excutor每次最多从es scroll 拉取的数据量，默认为50。</p>
+</li>
+</ol>
+<p>对比：</p>
+<pre><code>DSL：该方式优点在于：查询语句完全自己掌控，且可使用es的所有查询方式，可完全发挥es的查询优势，实现复杂查询，可针对es API特点实现语句优化。不足在于：有一定的门槛，需要了解DSL语法，以及es众多的查询API。对于返回结果需要自己实现解析。
+
+Spark ElasticSearch DataSource：该方式优点在于：
+简单，易上手，容易实现简单的过滤。不足在于：对于复杂的查询逻辑,评分等，难以实现，复杂语句的谓词下推效果并不好。</code></pre><p>Spark读取ES的API应用到这里就介绍完毕，接下来是大家最喜欢的源码分析环节…</p>
+<ul>
+<li>生成partition部分：</li>
+</ul>
+<p>关键类：org.elasticsearch.hadoop.rest.RestService<br>找到 findPartitions 方法：</p>
+<pre><code>代码：public static List&lt;PartitionDefinition&gt; findPartitions(Settings settings, Log log) {
+    Version.logVersion();
+
+    InitializationUtils.validateSettings(settings);
+    InitializationUtils.validateSettingsForReading(settings);
+
+    EsMajorVersion version = InitializationUtils.discoverEsVersion(settings, log);
+    List&lt;NodeInfo&gt; nodes = InitializationUtils.discoverNodesIfNeeded(settings, log);
+    InitializationUtils.filterNonClientNodesIfNeeded(settings, log);
+    InitializationUtils.filterNonDataNodesIfNeeded(settings, log);
+    InitializationUtils.filterNonIngestNodesIfNeeded(settings, log);
+
+    RestRepository client = new RestRepository(settings);
+    try {
+        boolean indexExists = client.indexExists(true);
+
+        List&lt;List&lt;Map&lt;String, Object&gt;&gt;&gt; shards = null;
+
+        if (!indexExists) {
+            if (settings.getIndexReadMissingAsEmpty()) {
+                log.info(String.format(&quot;Index [%s] missing - treating it as empty&quot;, settings.getResourceRead()));
+                shards = Collections.emptyList();
+            } else {
+                throw new EsHadoopIllegalArgumentException(
+                        String.format(&quot;Index [%s] missing and settings [%s] is set to false&quot;, settings.getResourceRead(), ConfigurationOptions.ES_INDEX_READ_MISSING_AS_EMPTY));
+            }
+        } else {
+            shards = client.getReadTargetShards();
+            if (log.isTraceEnabled()) {
+                log.trace(&quot;Creating splits for shards &quot; + shards);
+            }
+        }
+
+        log.info(String.format(&quot;Reading from [%s]&quot;, settings.getResourceRead()));
+
+        MappingSet mapping = null;
+        if (!shards.isEmpty()) {
+            mapping = client.getMappings();
+            if (log.isDebugEnabled()) {
+                log.debug(String.format(&quot;Discovered resolved mapping {%s} for [%s]&quot;, mapping.getResolvedView(), settings.getResourceRead()));
+            }
+            // validate if possible
+            FieldPresenceValidation validation = settings.getReadFieldExistanceValidation();
+            if (validation.isRequired()) {
+                MappingUtils.validateMapping(SettingsUtils.determineSourceFields(settings), mapping.getResolvedView(), validation, log);
+            }
+        }
+        final Map&lt;String, NodeInfo&gt; nodesMap = new HashMap&lt;String, NodeInfo&gt;();
+        if (nodes != null) {
+            for (NodeInfo node : nodes) {
+                nodesMap.put(node.getId(), node);
+            }
+        }
+        final List&lt;PartitionDefinition&gt; partitions;
+        if (version.onOrAfter(EsMajorVersion.V_5_X) &amp;&amp; settings.getInputUseSlicedPartitions()) {
+            partitions = findSlicePartitions(client.getRestClient(), settings, mapping, nodesMap, shards, log);
+        } else {
+            partitions = findShardPartitions(settings, mapping, nodesMap, shards, log);
+        }
+        Collections.shuffle(partitions);
+        return partitions;
+    } finally {
+        client.close();
+    }
+}</code></pre><p>由代码可见，前55行，基本是在做有效验证部分，跳过不细究，看到55行，根据当前的es版本，以及是否开启slice查询，来选取相应的生成partition的方法。es5.0版本后，scroll 增加了并行拉取，也就是使用slice。es-spark，将并行度，细化到了slice层。若是当前es版本小于5.0，那么，默认的分区将与查询的index的shard num相同。<br>由于我的es版本大于5.0，并且开启了slice，所以我们来看</p>
+<pre><code>代码
+static List&lt;PartitionDefinition&gt; findSlicePartitions(RestClient client, Settings settings, MappingSet mappingSet,
+                                                     Map&lt;String, NodeInfo&gt; nodes, List&lt;List&lt;Map&lt;String, Object&gt;&gt;&gt; shards, Log log) {
+    QueryBuilder query = QueryUtils.parseQueryAndFilters(settings);
+    int maxDocsPerPartition = settings.getMaxDocsPerPartition();
+    String types = new Resource(settings, true).type();
+    Mapping resolvedMapping = mappingSet == null ? null : mappingSet.getResolvedView();
+
+    List&lt;PartitionDefinition&gt; partitions = new ArrayList&lt;PartitionDefinition&gt;(shards.size());
+    for (List&lt;Map&lt;String, Object&gt;&gt; group : shards) {
+        String index = null;
+        int shardId = -1;
+        List&lt;String&gt; locationList = new ArrayList&lt;String&gt; ();
+        for (Map&lt;String, Object&gt; replica : group) {
+            ShardInfo shard = new ShardInfo(replica);
+            index = shard.getIndex();
+            shardId = shard.getName();
+            if (nodes.containsKey(shard.getNode())) {
+                locationList.add(nodes.get(shard.getNode()).getPublishAddress());
+            }
+        }
+        String[] locations = locationList.toArray(new String[0]);
+        if (index == null) {
+            // Could not find shards for this partition. Continue anyway?
+            if (settings.getIndexReadAllowRedStatus()) {
+                log.warn(&quot;Shard information is missing from an index and will not be reached during job execution. &quot; +
+                        &quot;Assuming shard is unavailable and cluster is red! Continuing with read operation by &quot; +
+                        &quot;skipping this shard! This may result in incomplete data retrieval!&quot;);
+            } else {
+                throw new IllegalStateException(&quot;Could not locate shard information for one of the read indices. &quot; +
+                        &quot;Check your cluster status to see if it is unstable!&quot;);
+            }
+        } else {
+            StringBuilder indexAndType = new StringBuilder(index);
+            if (StringUtils.hasLength(types)) {
+                indexAndType.append(&quot;/&quot;);
+                indexAndType.append(types);
+            }
+            // TODO applyAliasMetaData should be called in order to ensure that the count are exact (alias filters and routing may change the number of documents)
+            long numDocs = client.count(indexAndType.toString(), Integer.toString(shardId), query);
+            int numPartitions = (int) Math.max(1, numDocs / maxDocsPerPartition);
+            for (int i = 0; i &lt; numPartitions; i++) {
+                PartitionDefinition.Slice slice = new PartitionDefinition.Slice(i, numPartitions);
+                partitions.add(new PartitionDefinition(settings, resolvedMapping, index, shardId, slice, locations));
+            }
+        }
+    }
+    return partitions;
+}</code></pre><ol>
+<li>首先解析查询语句</li>
+<li>根据查询配置，找到<br> String ES_MAX_DOCS_PER_PARTITION = “es.input.max.docs.per.partition”;<br> int ES_DEFAULT_MAX_DOCS_PER_PARTITION = 100000;<br>该参数为，默认下，每个分区拉取的最大doc数量，为10w</li>
+<li>接下来拿到idnex的type以及mapping信息</li>
+<li>初始化一个类型为PartitionDefinition，size 为 shard num的List</li>
+<li>拿到当前的shard的信息，提取出shard 的地址。</li>
+<li>判断index是否有效，拼接index/type，向当前的shard发送count请求，统计当前语句下的匹配数量</li>
+<li>根据 count / maxDocsPerPartition，得到当前shard下分配的partition数量，并实例化一个Slice，添加到partitions；</li>
+<li>遍历所有的shard，并进行以上操作，生成最终的partitions，并返回。</li>
+</ol>
+<p>如上，也就是说，最终Spark的partition数量，在es5.0版本以后，是由 Shard num * (count / maxDocsPerPartition)决定;</p>
+<p>所以，如果单机拉取过慢，可以考虑，通过减少maxDocsPerPartition的值，或者，增加shard等来协调Spark partition的数量，增加并行度。</p>
+<p>针对Spark 读取ES 的实战感悟：</p>
+<pre><code>要想调优，多研究源码很重要。
+通过Spark 与 es的结合，使得es发挥强大的搜索引擎能力，并通过Spark强大的数据分析，可以使得OLAP更直观，准确。</code></pre>
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/源码/" rel="tag"># 源码</a>
+          
+            <a href="/tags/Spark/" rel="tag"># Spark</a>
+          
+            <a href="/tags/ElasticSearch/" rel="tag"># ElasticSearch</a>
+          
+            <a href="/tags/Spark-ElasticSearch/" rel="tag"># Spark-ElasticSearch</a>
+          
+            <a href="/tags/调优/" rel="tag"># 调优</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/08/18/剖析es集群系列-一-初识ElasticSearch/" rel="next" title="剖析es集群系列-一-初识ElasticSearch">
+                <i class="fa fa-chevron-left"></i> 剖析es集群系列-一-初识ElasticSearch
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/08/20/ElasticSearch-集群优化实践/" rel="prev" title="ElasticSearch 集群优化实践">
+                ElasticSearch 集群优化实践 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+
+      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">z Dapor</p>
+              <p class="site-description motion-element" itemprop="description">日常记录，当然不限于技术</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">12</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">1</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">9</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">z Dapor</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://github.com/z-Dapor">Ice-Cream</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info"><a class="theme-link" target="_blank" href="https://github.com/z-Dapor">find me</a></div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
