@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Hexo, NexT">
+  <meta name="keywords" content="ElasticSearch,Spark,Spark-ElasticSearch,源码,调优,">
 
 
 
@@ -79,17 +79,18 @@
 
 
 
-<meta name="description" content="日常记录，当然不限于技术">
+<meta name="description" content="前言：讨论框架的文章不声明版本的都是小黄文本文组件版本： ELasticSearch：6.4.1 Spark：2.1.0 依赖： &amp;lt;dependency&amp;gt;   &amp;lt;groupId&amp;gt;org.elasticsearch&amp;lt;/groupId&amp;gt;   &amp;lt;artifactId&amp;gt;elasticsearch-hadoop&amp;lt;/artifactId&amp;gt;   &amp;lt">
+<meta name="keywords" content="ElasticSearch,Spark,Spark-ElasticSearch,源码,调优">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Spark-es-读写及优化实践(二).md">
 <meta property="og:url" content="https://github.com/z-Dapor/2019/08/25/Spark-es-读写及优化实践-二-md/index.html">
 <meta property="og:site_name" content="两碗饭">
-<meta property="og:description" content="日常记录，当然不限于技术">
+<meta property="og:description" content="前言：讨论框架的文章不声明版本的都是小黄文本文组件版本： ELasticSearch：6.4.1 Spark：2.1.0 依赖： &amp;lt;dependency&amp;gt;   &amp;lt;groupId&amp;gt;org.elasticsearch&amp;lt;/groupId&amp;gt;   &amp;lt;artifactId&amp;gt;elasticsearch-hadoop&amp;lt;/artifactId&amp;gt;   &amp;lt">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2019-08-25T13:31:33.370Z">
+<meta property="og:updated_time" content="2019-08-27T15:37:46.016Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Spark-es-读写及优化实践(二).md">
-<meta name="twitter:description" content="日常记录，当然不限于技术">
+<meta name="twitter:description" content="前言：讨论框架的文章不声明版本的都是小黄文本文组件版本： ELasticSearch：6.4.1 Spark：2.1.0 依赖： &amp;lt;dependency&amp;gt;   &amp;lt;groupId&amp;gt;org.elasticsearch&amp;lt;/groupId&amp;gt;   &amp;lt;artifactId&amp;gt;elasticsearch-hadoop&amp;lt;/artifactId&amp;gt;   &amp;lt">
 
 
 
@@ -311,6 +312,11 @@
           
 
           
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv"><i class="fa fa-file-o"></i> 浏览
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>次
+            </span>
+          
 
           
 
@@ -329,7 +335,99 @@
       
 
       
-        
+        <p>前言：<br>讨论框架的文章不声明版本的都是小黄文<br>本文组件版本：</p>
+<pre><code>ELasticSearch：6.4.1
+Spark：2.1.0
+依赖：
+&lt;dependency&gt;
+  &lt;groupId&gt;org.elasticsearch&lt;/groupId&gt;
+  &lt;artifactId&gt;elasticsearch-hadoop&lt;/artifactId&gt;
+  &lt;version&gt;6.4.1&lt;/version&gt;
+&lt;/dependency&gt;</code></pre><p>官方：<br><a href="https://www.elastic.co/guide/en/elasticsearch/hadoop/7.3/configuration.html" target="_blank" rel="noopener">https://www.elastic.co/guide/en/elasticsearch/hadoop/7.3/configuration.html</a><br> 配置类：</p>
+<pre><code>org.elasticsearch.hadoop.cfg.ConfigurationOptions</code></pre><p>Spark es:<br>    write:</p>
+<p> 1.推荐使用RDD[scala case]</p>
+<p> 写入方式：<br> 主要介绍两种：</p>
+<pre><code>val conf = new SparkConf().setAppName(appName).setMaster(master)
+ conf.set(&quot;es.nodes&quot;, &quot;192.168.0.1&quot;)①
+ conf.set(&quot;es.port&quot;,&quot;9200&quot;)②
+ conf.set(&quot;es.mapping.exclude&quot;,&quot;uuid&quot;)③
+ conf.set(&quot;es.batch.size.bytes&quot;,&quot;15m&quot;)④
+ conf.set(&quot;es.batch.size.entries&quot;,&quot;15000&quot;)⑤
+ conf.set(&quot;es.batch.write.refresh&quot;,&quot;false&quot;)⑥
+
+ case class Dim(uuid:String,name:String) 
+ val rdd = sc.makeRdd(Seq[Dim(&quot;123&quot;,&quot;a&quot;)])
+
+ 1. import org.elasticsearch.spark.rdd.EsSpark
+    使用EsSpark.saveToEs(rdd, &quot;index/type&quot;，Map(&quot;es.mapping.id&quot; -&gt; uuid))⑦
+
+ 2. rdd.saveToEs(&quot;rdd/type&quot;) 
+    该方式需要导入import org.elasticsearch.spark._ </code></pre><p> 使用Spark 写入 es 相对简单，但是想要达到更好的性能，需要着重讲解下④⑤⑥。<br> 先简单说一下相关的配置：<br> 1.设置es节点，与 端口，由于默认开启host discovered，所以只设置一个就好，拿到所有hosts后会缓存集群信息。<br> 2.es.mapping.exclude：不写入改字段。<br> 3.Spark-es采用bulkPut方式，④⑤为设置批量写入的doc所占容量大小，以及doc数量。改参数需要自己通过写入的单条数据所占的大小，以及partition数量，总的数据量，以及es的配置多方面trade-off。建议 当bulk设置很大时，写入es的excutor不要过多，容易oom；<br> 4.⑥：es.batch.write.refresh：默认为true；默认情况下，每写完一批将会主动调用一遍refresh。如若，不要求写入立马可见，可将该值设为false，来提高写入性能。<br> 5.⑦：es.mapping.id” -&gt; uuid：指定docID，每个doc都有唯一的docID，当业务上不需要自己指定时，es会默认采用自己的id生成方式，会提高写入速度。大数据量下，有明显提升。<br> 以上为需要注意的参数，index的速度还会跟你的index的shard数量有关，partition的数量最好与shard数相对应，来提高并行。<br> Spark写入es的性能更多与以上参数有关，index的调优更多的依赖于mapping的构建，以及index的配置，还有集群的配置，涉及很多，会另外写一篇，调优工作经验总结。</p>
+<p>接下来 是大家最喜欢的源码分析环节：<br>    直奔主题：<br>    1.org.elasticsearch.spark.rdd.EsRDDWriter#write<br>        -&gt;<br>    2.org.elasticsearch.hadoop.rest.RestRepository#writeToIndex<br>        -&gt;<br>    3.org.elasticsearch.hadoop.rest.bulk.BulkProcessor#add<br>    4.org.elasticsearch.hadoop.rest.bulk.BulkProcessor#tryFlush<br>    主要就是经过了这四步：<br>    1.初始化writer，<br>    2.初始化bulkprocessor，<br>    3.向buffer中添加数据 判断数据满足bulk size要求；<br>    4.执行提交操作：tryFlush整合了，提交bulk请求，解析response，以及失败重试等操作。</p>
+<pre><code>def write(taskContext: TaskContext, data: Iterator[T]) {
+    val writer = RestService.createWriter(settings, taskContext.partitionId.toLong, -1, log)
+
+    taskContext.addTaskCompletionListener((TaskContext) =&gt; writer.close())
+
+    if (runtimeMetadata) {
+      writer.repository.addRuntimeFieldExtractor(metaExtractor)
+    }
+
+    while (data.hasNext) {
+      writer.repository.writeToIndex(processData(data))
+    }
+  }
+
+  public void writeToIndex(Object object) {
+    Assert.notNull(object, &quot;no object data given&quot;);
+
+    lazyInitWriting();
+    BytesRef serialized = bulkEntryWriter.writeBulkEntry(object);
+    if (serialized != null) {
+        doWriteToIndex(serialized);
+    }
+}
+
+private void doWriteToIndex(BytesRef payload) {
+    bulkProcessor.add(payload);
+    payload.reset();
+}
+
+
+public void add(BytesRef payload) {
+    // check space first
+    // ba is the backing array for data
+    if (payload.length() &gt; ba.available()) {
+        if (autoFlush) {
+            flush();
+        }
+        else {
+            throw new EsHadoopIllegalStateException(
+                    String.format(&quot;Auto-flush disabled and bulk buffer full; disable manual flush or increase &quot; +
+                            &quot;capacity [current size %s]; bailing out&quot;, ba.capacity()));
+        }
+    }
+
+    data.copyFrom(payload);
+
+    dataEntries++;
+    if (bufferEntriesThreshold &gt; 0 &amp;&amp; dataEntries &gt;= bufferEntriesThreshold) {
+        if (autoFlush) {
+            flush();
+        }
+        else {
+            // handle the corner case of manual flush that occurs only after the buffer is completely full (think size of 1)
+            if (dataEntries &gt; bufferEntriesThreshold) {
+                throw new EsHadoopIllegalStateException(
+                        String.format(
+                                &quot;Auto-flush disabled and maximum number of entries surpassed; disable manual &quot; +
+                                        &quot;flush or increase capacity [current size %s]; bailing out&quot;,
+                                bufferEntriesThreshold));
+            }
+        }
+    }
+}</code></pre><p>tryFlush()由于过长，不在此展开，有兴趣的朋友可以去看看。</p>
+
       
     </div>
     
@@ -343,6 +441,20 @@
     
 
     <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/ElasticSearch/" rel="tag"># ElasticSearch</a>
+          
+            <a href="/tags/Spark/" rel="tag"># Spark</a>
+          
+            <a href="/tags/Spark-ElasticSearch/" rel="tag"># Spark-ElasticSearch</a>
+          
+            <a href="/tags/源码/" rel="tag"># 源码</a>
+          
+            <a href="/tags/调优/" rel="tag"># 调优</a>
+          
+        </div>
       
 
       
@@ -451,7 +563,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">9</span>
+                  <span class="site-state-item-count">10</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
@@ -512,6 +624,26 @@
 
 
         
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      <i class="fa fa-user"></i> 访问人数
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      <i class="fa fa-eye"></i> 访问总量
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      次
+    </span>
+  
+</div>
+
 
 
 
