@@ -79,18 +79,18 @@
 
 
 
-<meta name="description" content="日常记录，当然不限于技术">
+<meta name="description" content="优化看着很高大上，但其实从原理上来看，很多的优化，看起来就像是理所当然的。 首先来讲一下index优化：    让我们回顾一下es的index写过程： 0.请求datanode，发送写请求。 1.写内存buffer，间隔1s进行refresh，刷到system cache 可见、 2.写完buffer之后，如果还有副本shard，则还会发请求到相应的shard上写副本，并确认写入结果，trans">
 <meta name="keywords" content="ElasticSearch,集群,优化">
 <meta property="og:type" content="article">
-<meta property="og:title" content="ElasticSearch 集群优化实践">
+<meta property="og:title" content="ElasticSearch 集群优化实践(一)">
 <meta property="og:url" content="https://github.com/z-Dapor/2019/08/20/ElasticSearch-集群优化实践/index.html">
 <meta property="og:site_name" content="两碗饭">
-<meta property="og:description" content="日常记录，当然不限于技术">
+<meta property="og:description" content="优化看着很高大上，但其实从原理上来看，很多的优化，看起来就像是理所当然的。 首先来讲一下index优化：    让我们回顾一下es的index写过程： 0.请求datanode，发送写请求。 1.写内存buffer，间隔1s进行refresh，刷到system cache 可见、 2.写完buffer之后，如果还有副本shard，则还会发请求到相应的shard上写副本，并确认写入结果，trans">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2019-08-27T15:41:46.354Z">
+<meta property="og:updated_time" content="2019-09-03T14:03:17.002Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="ElasticSearch 集群优化实践">
-<meta name="twitter:description" content="日常记录，当然不限于技术">
+<meta name="twitter:title" content="ElasticSearch 集群优化实践(一)">
+<meta name="twitter:description" content="优化看着很高大上，但其实从原理上来看，很多的优化，看起来就像是理所当然的。 首先来讲一下index优化：    让我们回顾一下es的index写过程： 0.请求datanode，发送写请求。 1.写内存buffer，间隔1s进行refresh，刷到system cache 可见、 2.写完buffer之后，如果还有副本shard，则还会发请求到相应的shard上写副本，并确认写入结果，trans">
 
 
 
@@ -126,7 +126,7 @@
 
 
 
-  <title>ElasticSearch 集群优化实践 | 两碗饭</title>
+  <title>ElasticSearch 集群优化实践(一) | 两碗饭</title>
   
 
 
@@ -280,7 +280,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">ElasticSearch 集群优化实践</h1>
+          <h1 class="post-title" itemprop="name headline">ElasticSearch 集群优化实践(一)</h1>
         
 
         <div class="post-meta">
@@ -335,7 +335,28 @@
       
 
       
-        
+        <p>优化看着很高大上，但其实从原理上来看，很多的优化，看起来就像是理所当然的。</p>
+<p>首先来讲一下index优化：<br>    让我们回顾一下es的index写过程：</p>
+<pre><code>0.请求datanode，发送写请求。
+1.写内存buffer，间隔1s进行refresh，刷到system cache 可见、
+2.写完buffer之后，如果还有副本shard，则还会发请求到相应的shard上写副本，并确认写入结果，trans og记录所有shard上的操作，当主副本都写入成功后，translog将同步刷写到磁盘上，记录该次写入成功。当translog达到一定大小，或者间隔30min，或者条数达到限制，将做flush log操作。
+3.translog每隔五秒，commit一次，使得cache刷到磁盘，以segement的形式存在，当segement够多，会发生segement merge操作，会合并成大段。
+4.以上操作 周而复始。</code></pre><p>接下来，让我们针对以上过程，来分析，并做相应优化。</p>
+<pre><code>1.避免请求master，多线程写(增加index 队列，cache)。
+2.内存buffer可调大，swap off 关闭写交换。
+3.refresh会产生segement，消耗文件描述符，增加文件描述符数量，相应的调大refresh间隔。简单点，磁盘上固态，改用电梯调度算法，调整磁盘挂载选项，机械盘改raid0。
+4.每次refresh也会导致translog刷盘，通过调整translog的相关配置：log条数上限，log占用空间大小，持久化策略改为异步，调整刷盘周期。
+5.segement达到一定程度会触发merge操作，引发大量的io，调整触发merge的限度，如：segment合并上限，这里可能会有内存问题，过多的segment意味着更多的内存空间，文件描述符占用，index结束后，尽可能的手动forceMerge；调整merge的线程数：sata盘设置为1就好，ssd可适当调大并对比。
+6.doc id采用默认(业务限制)。
+7.副本数会限制translog确认速率，为了提高index速率，可先将副本设为0，写完之后手动开启副本即可。
+8.内存及gc问题：jvm不要超过32g，指针压缩失效，会造成内存浪费，大堆的STW将耗费更多的CPU时间，严重时将导致服务不可用，node下线。权衡响应时间以及吞吐量，设置G1，将有很好的结果，将CMS改为G1，从此未受过GC的困扰，Full GC时间为0；多分内存给segment。
+9.集群分角色，master，datanode分离
+10.最后，还要充分的了解mapping，设计好field类型，比如：String类型的值，es默认给Text字段，会进行分词，计算相关性得分等操作，如若业务场景不需要分词，做的term查询等，推荐设为Keyword，可提高index效率，减少空间使用。如果不需要做聚合操作，可禁用docValue，如果只需要返回docID，或者某个字段，可以将source关闭不需要返回的字段，可优化存储，并且提高fetch阶段速度。</code></pre><br>
+TIPS:写这篇文章前，本打算按照index的过程一步步分析，画画图什么的，可是站的角度很高，导致思绪太快，结果写了很多文字，连相应的配置参数都没有(es更新太快，网上很多参数存在过期情况)，还有很多点没谈，没细谈。这些坑留着，以后补，有需要的可issue。
+<br>
+接下来写篇查询优化，以及性能排查的点。
+
+
       
     </div>
     
@@ -449,7 +470,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">12</span>
+                  <span class="site-state-item-count">13</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

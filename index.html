@@ -262,6 +262,132 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/z-Dapor/2019/09/03/ElasticSearch-集群优化实践-二/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="z Dapor">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="两碗饭">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2019/09/03/ElasticSearch-集群优化实践-二/" itemprop="url">ElasticSearch 集群优化实践(二)</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-09-03T23:12:15+08:00">
+                2019-09-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+          
+          
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2019/09/03/ElasticSearch-集群优化实践-二/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="https://github.com/z-Dapor/2019/08/25/Spark-es-读写及优化实践-二-md/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1050,7 +1176,7 @@ https://hbase.apache.org/d
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2019/08/20/ElasticSearch-集群优化实践/" itemprop="url">ElasticSearch 集群优化实践</a></h1>
+                <a class="post-title-link" href="/2019/08/20/ElasticSearch-集群优化实践/" itemprop="url">ElasticSearch 集群优化实践(一)</a></h1>
         
 
         <div class="post-meta">
@@ -1102,8 +1228,12 @@ https://hbase.apache.org/d
       
         
           
-          
-          
+          优化看着很高大上，但其实从原理上来看，很多的优化，看起来就像是理所当然的。
+首先来讲一下index优化：    让我们回顾一下es的index写过程：
+0.请求datanode，发送写请求。
+1.写内存buffer，间隔1s进行refresh，刷到system cache 可见、
+2.写完buffe
+          ...
           <!--noindex-->
           <div class="post-button text-center">
             <a class="btn" href="/2019/08/20/ElasticSearch-集群优化实践/#more" rel="contents">
@@ -1405,134 +1535,6 @@ es系列文章主要针对于6.0版本，会参杂7.0版本，将会在文中声
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/z-Dapor/2019/08/18/剖析es集群系列-三-集群细节/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="z Dapor">
-      <meta itemprop="description" content>
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="两碗饭">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2019/08/18/剖析es集群系列-三-集群细节/" itemprop="url">剖析es集群系列(三): 集群细节</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-18T18:31:36+08:00">
-                2019-08-18
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          在这篇文章中，我们将讨论ES是怎样提供近乎实时的查找以及思考权衡计算搜索相关性。在之前的文章中，我们讨论了ES怎样面对分布式系统的基本挑战。
-在这篇文章，我们将回顾ES近实时的搜索以及权衡它考虑计算搜索相关性。
-主要如下：近实时的查询为什么分布式搜索中的深度分页会很危险？计算搜索相关性的权衡Near
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2019/08/18/剖析es集群系列-三-集群细节/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -1583,7 +1585,7 @@ es系列文章主要针对于6.0版本，会参杂7.0版本，将会在文中声
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">12</span>
+                  <span class="site-state-item-count">13</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
