@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="ElasticSearch,集群,">
+  <meta name="keywords" content="ElasticSearch,Spark,Spark-ElasticSearch,源码,调优,">
 
 
 
@@ -79,20 +79,18 @@
 
 
 
-<meta name="description" content="在这篇文章中，我们将讨论ES是怎样提供近乎实时的查找以及思考权衡计算搜索相关性。在之前的文章中，我们讨论了ES怎样面对分布式系统的基本挑战。 在这篇文章，我们将回顾ES近实时的搜索以及权衡它考虑计算搜索相关性。 主要如下：近实时的查询为什么分布式搜索中的深度分页会很危险？计算搜索相关性的权衡Near real-time search  虽然Elasticsearch的变化不会立即出现，但它确实提供">
-<meta name="keywords" content="ElasticSearch,集群">
+<meta name="description" content="前言：讨论框架的文章不声明版本的都是小黄文本文组件版本： ELasticSearch：6.4.1 Spark：2.1.0 依赖： &amp;lt;dependency&amp;gt;   &amp;lt;groupId&amp;gt;org.elasticsearch&amp;lt;/groupId&amp;gt;   &amp;lt;artifactId&amp;gt;elasticsearch-hadoop&amp;lt;/artifactId&amp;gt;   &amp;lt">
+<meta name="keywords" content="ElasticSearch,Spark,Spark-ElasticSearch,源码,调优">
 <meta property="og:type" content="article">
-<meta property="og:title" content="剖析es集群系列(三): 集群细节">
-<meta property="og:url" content="https://github.com/z-Dapor/2019/08/18/剖析es集群系列-三-集群细节/index.html">
+<meta property="og:title" content="Spark-es-读写及优化实践(二).md">
+<meta property="og:url" content="https://github.com/z-Dapor/2019/08/25/Spark-es-读写及优化实践-二-/index.html">
 <meta property="og:site_name" content="两碗饭">
-<meta property="og:description" content="在这篇文章中，我们将讨论ES是怎样提供近乎实时的查找以及思考权衡计算搜索相关性。在之前的文章中，我们讨论了ES怎样面对分布式系统的基本挑战。 在这篇文章，我们将回顾ES近实时的搜索以及权衡它考虑计算搜索相关性。 主要如下：近实时的查询为什么分布式搜索中的深度分页会很危险？计算搜索相关性的权衡Near real-time search  虽然Elasticsearch的变化不会立即出现，但它确实提供">
+<meta property="og:description" content="前言：讨论框架的文章不声明版本的都是小黄文本文组件版本： ELasticSearch：6.4.1 Spark：2.1.0 依赖： &amp;lt;dependency&amp;gt;   &amp;lt;groupId&amp;gt;org.elasticsearch&amp;lt;/groupId&amp;gt;   &amp;lt;artifactId&amp;gt;elasticsearch-hadoop&amp;lt;/artifactId&amp;gt;   &amp;lt">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:image" content="https://github.com/2019/08/18/剖析es集群系列-三-集群细节/深度分页.png">
-<meta property="og:updated_time" content="2019-08-19T15:45:34.519Z">
+<meta property="og:updated_time" content="2019-08-27T15:37:46.016Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="剖析es集群系列(三): 集群细节">
-<meta name="twitter:description" content="在这篇文章中，我们将讨论ES是怎样提供近乎实时的查找以及思考权衡计算搜索相关性。在之前的文章中，我们讨论了ES怎样面对分布式系统的基本挑战。 在这篇文章，我们将回顾ES近实时的搜索以及权衡它考虑计算搜索相关性。 主要如下：近实时的查询为什么分布式搜索中的深度分页会很危险？计算搜索相关性的权衡Near real-time search  虽然Elasticsearch的变化不会立即出现，但它确实提供">
-<meta name="twitter:image" content="https://github.com/2019/08/18/剖析es集群系列-三-集群细节/深度分页.png">
+<meta name="twitter:title" content="Spark-es-读写及优化实践(二).md">
+<meta name="twitter:description" content="前言：讨论框架的文章不声明版本的都是小黄文本文组件版本： ELasticSearch：6.4.1 Spark：2.1.0 依赖： &amp;lt;dependency&amp;gt;   &amp;lt;groupId&amp;gt;org.elasticsearch&amp;lt;/groupId&amp;gt;   &amp;lt;artifactId&amp;gt;elasticsearch-hadoop&amp;lt;/artifactId&amp;gt;   &amp;lt">
 
 
 
@@ -122,13 +120,13 @@
 
 
 
-  <link rel="canonical" href="https://github.com/z-Dapor/2019/08/18/剖析es集群系列-三-集群细节/">
+  <link rel="canonical" href="https://github.com/z-Dapor/2019/08/25/Spark-es-读写及优化实践-二-/">
 
 
 
 
 
-  <title>剖析es集群系列(三): 集群细节 | 两碗饭</title>
+  <title>Spark-es-读写及优化实践(二).md | 两碗饭</title>
   
 
 
@@ -265,7 +263,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/z-Dapor/2019/08/18/剖析es集群系列-三-集群细节/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/z-Dapor/2019/08/25/Spark-es-读写及优化实践-二-/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="z Dapor">
@@ -282,7 +280,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">剖析es集群系列(三): 集群细节</h1>
+          <h1 class="post-title" itemprop="name headline">Spark-es-读写及优化实践(二).md</h1>
         
 
         <div class="post-meta">
@@ -294,8 +292,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-18T18:31:36+08:00">
-                2019-08-18
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-25T21:31:33+08:00">
+                2019-08-25
               </time>
             
 
@@ -337,41 +335,99 @@
       
 
       
-        <pre><code>在这篇文章中，我们将讨论ES是怎样提供近乎实时的查找以及思考权衡计算搜索相关性。在之前的文章中，我们讨论了ES怎样面对分布式系统的基本挑战。
-在这篇文章，我们将回顾ES近实时的搜索以及权衡它考虑计算搜索相关性。
-主要如下：近实时的查询为什么分布式搜索中的深度分页会很危险？计算搜索相关性的权衡Near real-time search
+        <p>前言：<br>讨论框架的文章不声明版本的都是小黄文<br>本文组件版本：</p>
+<pre><code>ELasticSearch：6.4.1
+Spark：2.1.0
+依赖：
+&lt;dependency&gt;
+  &lt;groupId&gt;org.elasticsearch&lt;/groupId&gt;
+  &lt;artifactId&gt;elasticsearch-hadoop&lt;/artifactId&gt;
+  &lt;version&gt;6.4.1&lt;/version&gt;
+&lt;/dependency&gt;</code></pre><p>官方：<br><a href="https://www.elastic.co/guide/en/elasticsearch/hadoop/7.3/configuration.html" target="_blank" rel="noopener">https://www.elastic.co/guide/en/elasticsearch/hadoop/7.3/configuration.html</a><br> 配置类：</p>
+<pre><code>org.elasticsearch.hadoop.cfg.ConfigurationOptions</code></pre><p>Spark es:<br>    write:</p>
+<p> 1.推荐使用RDD[scala case]</p>
+<p> 写入方式：<br> 主要介绍两种：</p>
+<pre><code>val conf = new SparkConf().setAppName(appName).setMaster(master)
+ conf.set(&quot;es.nodes&quot;, &quot;192.168.0.1&quot;)①
+ conf.set(&quot;es.port&quot;,&quot;9200&quot;)②
+ conf.set(&quot;es.mapping.exclude&quot;,&quot;uuid&quot;)③
+ conf.set(&quot;es.batch.size.bytes&quot;,&quot;15m&quot;)④
+ conf.set(&quot;es.batch.size.entries&quot;,&quot;15000&quot;)⑤
+ conf.set(&quot;es.batch.write.refresh&quot;,&quot;false&quot;)⑥
 
-虽然Elasticsearch的变化不会立即出现，但它确实提供了一个近乎实时的搜索引擎。
-如之前提到的，提价Lucene改变到磁盘是昂贵的操作。
-为了避免将更改提交到磁盘，同时仍然使文档可用于搜索，在内存缓冲区和磁盘之间有一个文件系统缓存。
-内存缓冲区在每一秒钟(默认情况下)刷新一次，并且在文件系统缓存中创建一个新的具有倒排索引的段。
-这个段是打开的并且可用于查找。
-文件系统缓存可以有文件句柄，可以打开、读取和关闭文件，但是，它位于内存中。
-由于默认刷新间隔为1秒，因此更改不会立即可见，因此它接近实时。
-由于translog是不持久化到磁盘上的更改的持久记录，因此它还有助于CRUD操作的接近实时方面.
-对于每个请求，translog都会在查看相关部分之前搜索最近的任何更改，因此客户机几乎可以实时访问所有更改。
+ case class Dim(uuid:String,name:String) 
+ val rdd = sc.makeRdd(Seq[Dim(&quot;123&quot;,&quot;a&quot;)])
 
-您可以在每次创建/更新/删除操作之后显式地刷新索引，以使更改立即可见，但不建议这样做，因为创建的小段太多，会影响搜索性能。
-对于搜索请求，将搜索给定的Elasticsearch索引碎片中的所有Lucene片段，但是，获取结果页面深处的所有匹配文档或文档对您的Elasticsearch集群是危险的。
-让我们看看为什么会这样。
-当您在Elasticsearch中进行搜索请求，其中有许多匹配文档时，默认情况下，返回的第一个页面包含前10个结果。
-搜索API有from和size参数来指定匹配搜索的所有文档的结果应该有多深。
-例如，如果您想查看与搜索匹配的级别为50到60的文档，那么from=50和size=10开始。
-当每个碎片接收到搜索请求时，它将创建一个大小为（from+size）优先队列，以满足搜索结果本身，然后将结果返回到协调节点。</code></pre><img src="/2019/08/18/剖析es集群系列-三-集群细节/深度分页.png" title="This is an shard image">
+ 1. import org.elasticsearch.spark.rdd.EsSpark
+    使用EsSpark.saveToEs(rdd, &quot;index/type&quot;，Map(&quot;es.mapping.id&quot; -&gt; uuid))⑦
 
-<pre><code>如果您希望看到从50,000到50,010排序的结果，那么每个碎片将创建一个优先队列，每个碎片有50,010个结果，
-协调节点必须在内存中对碎片数量* 50,010个结果进行排序。
-这种级别的分页可能是可行的，也可能是不可能的，这取决于您拥有的硬件资源，但是可以这样说，您应该非常小心深度分页，因为它很容易导致集群崩溃。
-使用 scroll API可以获得与结果匹配的所有文档，滚动API更像是关系数据库中的游标。
-使用滚动API禁用排序，每个碎片都会发送结果，只要它有与搜索匹配的文档。如果要获取大量的文档，那么对得分结果进行排序是很昂贵的。
-而且，由于Elasticsearch是一个分布式系统，计算文档的搜索相关性得分非常昂贵。
+ 2. rdd.saveToEs(&quot;rdd/type&quot;) 
+    该方式需要导入import org.elasticsearch.spark._ </code></pre><p> 使用Spark 写入 es 相对简单，但是想要达到更好的性能，需要着重讲解下④⑤⑥。<br> 先简单说一下相关的配置：<br> 1.设置es节点，与 端口，由于默认开启host discovered，所以只设置一个就好，拿到所有hosts后会缓存集群信息。<br> 2.es.mapping.exclude：不写入改字段。<br> 3.Spark-es采用bulkPut方式，④⑤为设置批量写入的doc所占容量大小，以及doc数量。改参数需要自己通过写入的单条数据所占的大小，以及partition数量，总的数据量，以及es的配置多方面trade-off。建议 当bulk设置很大时，写入es的excutor不要过多，容易oom；<br> 4.⑥：es.batch.write.refresh：默认为true；默认情况下，每写完一批将会主动调用一遍refresh。如若，不要求写入立马可见，可将该值设为false，来提高写入性能。<br> 5.⑦：es.mapping.id” -&gt; uuid：指定docID，每个doc都有唯一的docID，当业务上不需要自己指定时，es会默认采用自己的id生成方式，会提高写入速度。大数据量下，有明显提升。<br> 以上为需要注意的参数，index的速度还会跟你的index的shard数量有关，partition的数量最好与shard数相对应，来提高并行。<br> Spark写入es的性能更多与以上参数有关，index的调优更多的依赖于mapping的构建，以及index的配置，还有集群的配置，涉及很多，会另外写一篇，调优工作经验总结。</p>
+<p>接下来 是大家最喜欢的源码分析环节：<br>    直奔主题：<br>    1.org.elasticsearch.spark.rdd.EsRDDWriter#write<br>        -&gt;<br>    2.org.elasticsearch.hadoop.rest.RestRepository#writeToIndex<br>        -&gt;<br>    3.org.elasticsearch.hadoop.rest.bulk.BulkProcessor#add<br>    4.org.elasticsearch.hadoop.rest.bulk.BulkProcessor#tryFlush<br>    主要就是经过了这四步：<br>    1.初始化writer，<br>    2.初始化bulkprocessor，<br>    3.向buffer中添加数据 判断数据满足bulk size要求；<br>    4.执行提交操作：tryFlush整合了，提交bulk请求，解析response，以及失败重试等操作。</p>
+<pre><code>def write(taskContext: TaskContext, data: Iterator[T]) {
+    val writer = RestService.createWriter(settings, taskContext.partitionId.toLong, -1, log)
 
-现在让我们看看计算搜索相关性所做的许多权衡取舍之一。 
+    taskContext.addTaskCompletionListener((TaskContext) =&gt; writer.close())
 
-使用tf-idf搜索相关性，由于其分布式特性，计算全局idf(倒排频率)非常昂贵。
-相反，每个碎片计算一个本地idf，为结果文档分配一个相关得分，并仅为该碎片上的文档返回结果。
-类似地，所有碎片返回结果文档，其中包含使用本地idf计算的相关分数，协调节点对所有结果进行排序，以返回最高的分数。
-在大多数情况下，这是可以的，除非索引在关键字方面是倾斜的，或者单个碎片上没有足够的数据来表示全局分布。</code></pre>
+    if (runtimeMetadata) {
+      writer.repository.addRuntimeFieldExtractor(metaExtractor)
+    }
+
+    while (data.hasNext) {
+      writer.repository.writeToIndex(processData(data))
+    }
+  }
+
+  public void writeToIndex(Object object) {
+    Assert.notNull(object, &quot;no object data given&quot;);
+
+    lazyInitWriting();
+    BytesRef serialized = bulkEntryWriter.writeBulkEntry(object);
+    if (serialized != null) {
+        doWriteToIndex(serialized);
+    }
+}
+
+private void doWriteToIndex(BytesRef payload) {
+    bulkProcessor.add(payload);
+    payload.reset();
+}
+
+
+public void add(BytesRef payload) {
+    // check space first
+    // ba is the backing array for data
+    if (payload.length() &gt; ba.available()) {
+        if (autoFlush) {
+            flush();
+        }
+        else {
+            throw new EsHadoopIllegalStateException(
+                    String.format(&quot;Auto-flush disabled and bulk buffer full; disable manual flush or increase &quot; +
+                            &quot;capacity [current size %s]; bailing out&quot;, ba.capacity()));
+        }
+    }
+
+    data.copyFrom(payload);
+
+    dataEntries++;
+    if (bufferEntriesThreshold &gt; 0 &amp;&amp; dataEntries &gt;= bufferEntriesThreshold) {
+        if (autoFlush) {
+            flush();
+        }
+        else {
+            // handle the corner case of manual flush that occurs only after the buffer is completely full (think size of 1)
+            if (dataEntries &gt; bufferEntriesThreshold) {
+                throw new EsHadoopIllegalStateException(
+                        String.format(
+                                &quot;Auto-flush disabled and maximum number of entries surpassed; disable manual &quot; +
+                                        &quot;flush or increase capacity [current size %s]; bailing out&quot;,
+                                bufferEntriesThreshold));
+            }
+        }
+    }
+}</code></pre><p>tryFlush()由于过长，不在此展开，有兴趣的朋友可以去看看。</p>
+
       
     </div>
     
@@ -390,7 +446,13 @@
           
             <a href="/tags/ElasticSearch/" rel="tag"># ElasticSearch</a>
           
-            <a href="/tags/集群/" rel="tag"># 集群</a>
+            <a href="/tags/Spark/" rel="tag"># Spark</a>
+          
+            <a href="/tags/Spark-ElasticSearch/" rel="tag"># Spark-ElasticSearch</a>
+          
+            <a href="/tags/源码/" rel="tag"># 源码</a>
+          
+            <a href="/tags/调优/" rel="tag"># 调优</a>
           
         </div>
       
@@ -403,8 +465,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2019/08/17/剖析es集群系列-二-集群内部的一些事儿/" rel="next" title="剖析es集群系列(二): 集群内部的一些事儿">
-                <i class="fa fa-chevron-left"></i> 剖析es集群系列(二): 集群内部的一些事儿
+              <a href="/2019/08/21/Win10下编译Spark并导入Idea进行源码分析/" rel="next" title="Win10下编译Spark并导入Idea进行源码分析">
+                <i class="fa fa-chevron-left"></i> Win10下编译Spark并导入Idea进行源码分析
               </a>
             
           </div>
@@ -413,8 +475,8 @@
 
           <div class="post-nav-prev post-nav-item">
             
-              <a href="/2019/08/18/剖析es集群系列-一-初识ElasticSearch/" rel="prev" title="剖析es集群系列-一-初识ElasticSearch">
-                剖析es集群系列-一-初识ElasticSearch <i class="fa fa-chevron-right"></i>
+              <a href="/2019/09/03/ElasticSearch-集群优化实践-二/" rel="prev" title="ElasticSearch 集群优化实践(二)">
+                ElasticSearch 集群优化实践(二) <i class="fa fa-chevron-right"></i>
               </a>
             
           </div>

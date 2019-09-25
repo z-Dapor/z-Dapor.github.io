@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Hexo, NexT">
+  <meta name="keywords" content="ElasticSearch,集群,优化,">
 
 
 
@@ -79,17 +79,18 @@
 
 
 
-<meta name="description" content="日常记录，当然不限于技术">
+<meta name="description" content="优化看着很高大上，但其实从原理上来看，很多的优化，看起来就像是理所当然的。 这回来讲一下查询优化：    让我们回顾一下es的查询过程： 0.请求datanode，发送查询请求。 1.当前接收请求的node作为coordinator node,进入query阶段并发送查询给DataNode. 2.DataNode进行index查询并将符合条件的docID返回给coordinator 3.进入fet">
+<meta name="keywords" content="ElasticSearch,集群,优化">
 <meta property="og:type" content="article">
 <meta property="og:title" content="ElasticSearch 集群优化实践(二)">
 <meta property="og:url" content="https://github.com/z-Dapor/2019/09/03/ElasticSearch-集群优化实践-二/index.html">
 <meta property="og:site_name" content="两碗饭">
-<meta property="og:description" content="日常记录，当然不限于技术">
+<meta property="og:description" content="优化看着很高大上，但其实从原理上来看，很多的优化，看起来就像是理所当然的。 这回来讲一下查询优化：    让我们回顾一下es的查询过程： 0.请求datanode，发送查询请求。 1.当前接收请求的node作为coordinator node,进入query阶段并发送查询给DataNode. 2.DataNode进行index查询并将符合条件的docID返回给coordinator 3.进入fet">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2019-09-03T15:12:15.880Z">
+<meta property="og:updated_time" content="2019-09-15T08:58:32.822Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="ElasticSearch 集群优化实践(二)">
-<meta name="twitter:description" content="日常记录，当然不限于技术">
+<meta name="twitter:description" content="优化看着很高大上，但其实从原理上来看，很多的优化，看起来就像是理所当然的。 这回来讲一下查询优化：    让我们回顾一下es的查询过程： 0.请求datanode，发送查询请求。 1.当前接收请求的node作为coordinator node,进入query阶段并发送查询给DataNode. 2.DataNode进行index查询并将符合条件的docID返回给coordinator 3.进入fet">
 
 
 
@@ -334,7 +335,33 @@
       
 
       
-        
+        <p>优化看着很高大上，但其实从原理上来看，很多的优化，看起来就像是理所当然的。</p>
+<p>这回来讲一下查询优化：<br>    让我们回顾一下es的查询过程：</p>
+<pre><code>0.请求datanode，发送查询请求。
+1.当前接收请求的node作为coordinator node,进入query阶段并发送查询给DataNode.
+2.DataNode进行index查询并将符合条件的docID返回给coordinator
+3.进入fetch阶段，coordinator默认按照docID%shard_length,去相应的shard进行拉取数据。
+4.以上操作 周而复始。</code></pre><p>接下来，让我们针对以上过程，来分析，并做相应优化。</p>
+<pre><code>0.能上SSD就用SSD，没条件的就RAID0，控制内存，增加filesystem cache，调整request cache，以及query cache。
+1.避免请求master，减少master压力，做角色分离。
+2.针对业务评估做route的可能性，减少寻址时间。
+3.评估DSL，尽量使用bool,filter查询,可cache结果,调整source,对于不需要的field可exclude,减少传输压力,以及coordinator内存压力.对于cold aggregate可开启request cache;
+4.调整segment数量,减少内存压力.
+5.v6.0版本后,可以使用index sort来提高查询返回速度，减少不必要的查询判断.需要针对index speed 进行trade-off.
+6.shard的数量需要根据集群的规模进行相应的权衡.单个index的shard在单个node上不要超过3个,shard的大小不要过大,在20-50G即可,小于20也无妨.
+7.对于聚合性能要求高的，可适当增加filesystem cache的大小，采用&quot;eager_global_ordinals&quot;: true，对filed进行设置.
+8.权衡数字字段是否可采用keyword类型,es对于keyword做了较多的查询优化.如:range query.
+9.尽量不要用nested字段,不仅增大index磁盘占用,还会增加慢查询几率，尽量反规范化.
+10.最后，还要充分的了解mapping，设计好field类型，比如：String类型的值，es默认给Text字段，会进行分词，计算相关性得分等操作，如若业务场景不需要分词，做的term查询等，推荐设为Keyword，可提高index效率，减少空间使用。如果不需要做聚合操作，可禁用docValue，如果只需要返回docID，或者某个字段，可以将source关闭不需要返回的字段，可优化存储，并且提高fetch阶段速度。</code></pre><br>
+TIPS:还有很多点没谈，没细谈。
+例如：
+    1.FST：保存term字典，可以在FST上实现单Term、Term范围、Term前缀和通配符查询等。
+    2.倒排链：保存了每个term对应的docId的列表，采用skipList的结构保存，用于快速跳跃。
+    3.BKD-Tree：BKD-Tree是一种保存多维空间点的数据结构，用于数值类型(包括空间点)的快速查找。
+    4.DocValues：基于docId的列式存储，由于列式存储的特点，可以有效提升排序聚合的性能。
+
+<p>了解这些数据结构，对于深度的查询优化是有帮助的,众坑留着，再议。<br><br><br>OK es集群，以及查询,index的两篇优化到这告一段落了.</p>
+
       
     </div>
     
@@ -349,6 +376,16 @@
 
     <footer class="post-footer">
       
+        <div class="post-tags">
+          
+            <a href="/tags/ElasticSearch/" rel="tag"># ElasticSearch</a>
+          
+            <a href="/tags/集群/" rel="tag"># 集群</a>
+          
+            <a href="/tags/优化/" rel="tag"># 优化</a>
+          
+        </div>
+      
 
       
       
@@ -358,7 +395,7 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2019/08/25/Spark-es-读写及优化实践-二-md/" rel="next" title="Spark-es-读写及优化实践(二).md">
+              <a href="/2019/08/25/Spark-es-读写及优化实践-二-/" rel="next" title="Spark-es-读写及优化实践(二).md">
                 <i class="fa fa-chevron-left"></i> Spark-es-读写及优化实践(二).md
               </a>
             
@@ -367,6 +404,10 @@
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/09/03/zip-GZip-LZ4-snappy等压缩存储格式的取舍/" rel="prev" title="zip,GZip,LZ4,snappy等压缩存储格式的取舍">
+                zip,GZip,LZ4,snappy等压缩存储格式的取舍 <i class="fa fa-chevron-right"></i>
+              </a>
             
           </div>
         </div>
@@ -456,7 +497,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-count">12</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
